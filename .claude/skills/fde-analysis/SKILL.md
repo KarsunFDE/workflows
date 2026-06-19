@@ -1,0 +1,29 @@
+---
+name: fde-analysis
+description: Rules for FDE codebase analysis — evidence discipline, capability clustering, schema extraction, and coverage. Use during /fde-analyze and any cited codebase read.
+---
+
+# FDE Analysis Rules
+
+Four rule-sets the analysis agents follow. (Persona work uses the separate `persona-synthesis` skill.)
+
+## 1. Evidence discipline (every finding)
+- Cite `file:line` for every claim — no citation, drop it.
+- Tag `category`: **fact** (observable at the line) | **inference** (reasoned) | **recommendation**. Never present an assumption as fact.
+- Tag `evidence_type`: **code** | **comment-only**. Comment-only = a **ghost** → "referenced, not implemented", never asserted real.
+- `confidence` 0.0–1.0 (facts = 1.0; inferences scored by strength + corroboration; say why).
+- Read the **entire** assigned file before emitting any finding. No skimming, no guessing about unread regions.
+- Report shape: separate **Facts / Inferences / Recommendations**.
+
+## 2. Capability clustering
+- Group findings by **business capability** (e.g. Contract Modification, Payment Certification, Audit/Compliance), NOT by directory. A capability spread across dirs is ONE capability; cross-check vs directory structure as a sanity signal.
+- Per capability: description, supporting services/data/workflows (cited), users, business value, **criticality** (Critical/High/Medium/Low), what-breaks-if-removed, confidence.
+- Criticality: Critical = irreversible/money/legal-authority/audit; High = core workflow; Medium = supporting; Low = peripheral.
+
+## 3. Duplication & schema
+- **Duplication**: same logic in N places → record once with `duplicated_at: [file:line,...]`; never count copies as distinct.
+- **Schema**: classify schema-defining vs data-bearing files. If no schema files, **reconstruct** entity shape from code (models/interfaces/forms), cite `file:line`, mark `source=reconstructed`. Link schema → entity → consumers. Flag **orphaned** (on disk, unreferenced) and **missing** (used, undefined) schemas. Constraints (length/NOT NULL/enums/FK) are candidate business rules.
+- Schema map output = markdown table `| Entity | Field | Type | Constraint | file:line | source |`.
+
+## 4. Completeness (no silent truncation)
+- Reconcile the discovered file work-list against files actually read/mapped. Report coverage `read/total` and list every missed file with a reason. A truncation/cap/sampling MUST be logged — silent truncation reads as "covered everything" when it didn't.

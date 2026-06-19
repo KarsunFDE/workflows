@@ -1,0 +1,1038 @@
+<!doctype html><html><head><script>(()=>{function C(b){if(window===top)return;if(b.type==="auxclick"&&b.button!==1)return;const z=b.composedPath?b.composedPath():[b.target];let j=null;for(let x=0;x<z.length;x++){const q=z[x];if(q&&q.matches&&q.matches("a[href],area[href]")){j=q;break}}if(!j&&b.target&&b.target.closest){j=b.target.closest("a[href],area[href]")}if(!j)return;const A=j.getAttribute("href");if(!A)return;let k,B;try{k=new URL(A,document.baseURI);B=new URL(document.baseURI).origin}catch{return}if((k.protocol==="http:"||k.protocol==="https:")&&k.origin!==B){b.preventDefault();parent.postMessage({__frame_nav:true,url:k.href},"*")}}addEventListener("click",C,true);addEventListener("auxclick",C,true);})();</script><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:20px;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>FDE Analysis Report — Contract Payment Flow (Workflow Package)</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #21253a;
+    --border: #2e3347;
+    --accent: #4f8ef7;
+    --accent2: #7c5cfc;
+    --green: #3ecf8e;
+    --yellow: #f5c542;
+    --red: #f26b6b;
+    --orange: #f5a623;
+    --text: #e2e4ef;
+    --text-muted: #8b93b0;
+    --text-dim: #5a6080;
+    --code-bg: #13151f;
+    --radius: 6px;
+    --font-mono: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.65;
+    padding: 0;
+  }
+
+  /* ── header ── */
+  .page-header {
+    background: linear-gradient(135deg, #1a1d27 0%, #13151f 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 40px 48px 32px;
+  }
+  .page-header .tag {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 10px;
+    border-radius: 3px;
+    margin-bottom: 12px;
+  }
+  .page-header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .page-header .subtitle {
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .meta-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .meta-item .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; }
+  .meta-item .value { font-size: 13px; color: var(--text); font-weight: 500; }
+
+  /* ── layout ── */
+  .layout {
+    display: flex;
+    min-height: calc(100vh - 140px);
+  }
+  .toc {
+    width: 220px;
+    flex-shrink: 0;
+    padding: 28px 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .toc-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 0 20px 12px;
+  }
+  .toc a {
+    display: block;
+    padding: 5px 20px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 12.5px;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .toc a:hover { color: var(--accent); border-left-color: var(--accent); background: rgba(79,142,247,0.05); }
+  .toc a .num { color: var(--text-dim); font-size: 11px; margin-right: 6px; }
+
+  .main { flex: 1; padding: 40px 48px; max-width: 960px; overflow-x: hidden; }
+
+  /* ── sections ── */
+  .section { margin-bottom: 56px; }
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-header .num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(79,142,247,0.12);
+    padding: 2px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .section-header h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin: 24px 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 16px 0 8px;
+  }
+
+  p { margin-bottom: 10px; color: var(--text); }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── fact/infer/rec pills ── */
+  .fi-block { margin: 8px 0; display: flex; align-items: flex-start; gap: 6px; }
+  .fi-label {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .fi-fact  { background: rgba(62,207,142,0.18); color: var(--green); }
+  .fi-infer { background: rgba(245,197,66,0.18); color: var(--yellow); }
+  .fi-rec   { background: rgba(124,92,252,0.2); color: #a88cff; }
+  .fi-text  { color: var(--text); font-size: 13px; line-height: 1.6; }
+
+  /* ── confidence badge ── */
+  .conf {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .conf-high   { background: rgba(62,207,142,0.15); color: var(--green); }
+  .conf-med    { background: rgba(245,166,35,0.15); color: var(--orange); }
+  .conf-low    { background: rgba(242,107,107,0.15); color: var(--red); }
+
+  /* ── criticality badges ── */
+  .crit {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1px 8px;
+    border-radius: 3px;
+  }
+  .crit-critical { background: rgba(242,107,107,0.18); color: var(--red); }
+  .crit-high { background: rgba(245,166,35,0.18); color: var(--orange); }
+
+  /* ── cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .card-body { font-size: 13px; color: var(--text-muted); }
+  .card-body p { color: var(--text); }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+
+  /* ── tables ── */
+  .tbl-wrap { overflow-x: auto; margin: 12px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  th {
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--text);
+    font-size: 12px;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .td-code { font-family: var(--font-mono); font-size: 11px; color: #90caf9; }
+  .td-muted { color: var(--text-muted); }
+  .td-warn { color: var(--yellow); }
+  .td-err { color: var(--red); }
+  .td-ok { color: var(--green); }
+
+  /* ── code ── */
+  code {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    background: var(--code-bg);
+    color: #90caf9;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── callout boxes ── */
+  .callout {
+    border-left: 3px solid;
+    padding: 10px 14px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  .callout-warn { border-color: var(--yellow); background: rgba(245,197,66,0.07); }
+  .callout-err  { border-color: var(--red); background: rgba(242,107,107,0.07); }
+  .callout-info { border-color: var(--accent); background: rgba(79,142,247,0.07); }
+  .callout-ok   { border-color: var(--green); background: rgba(62,207,142,0.07); }
+  .callout strong { color: #fff; }
+
+  /* ── persona card ── */
+  .persona-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .persona-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .persona-name { font-size: 15px; font-weight: 700; color: #fff; }
+  .persona-corr {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-style: italic;
+    background: var(--surface2);
+    padding: 1px 8px;
+    border-radius: 3px;
+  }
+
+  .evidence-list { margin: 8px 0 0; padding: 0; list-style: none; }
+  .evidence-list li {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 3px 0 3px 12px;
+    border-left: 2px solid var(--border);
+    margin-bottom: 3px;
+    font-family: var(--font-mono);
+    line-height: 1.5;
+  }
+
+  /* ── scope pills ── */
+  .scope-bound { background: rgba(79,142,247,0.15); color: var(--accent); }
+  .scope-out   { background: rgba(90,96,128,0.25); color: var(--text-dim); }
+  .scope-pill {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1px 8px;
+    border-radius: 3px;
+  }
+
+  /* ── coverage bar ── */
+  .coverage-bar-wrap { margin: 10px 0; }
+  .coverage-bar-label { font-size: 12px; color: var(--text-muted); margin-bottom: 5px; display: flex; justify-content: space-between; }
+  .coverage-bar-bg { background: var(--surface2); border-radius: 99px; height: 8px; overflow: hidden; }
+  .coverage-bar-fill { height: 100%; border-radius: 99px; }
+
+  /* ── compare table (options) ── */
+  .compare-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .compare-wrap { grid-template-columns: 1fr; } }
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .compare-card h4 { font-size: 14px; margin-top: 0; margin-bottom: 6px; }
+  .compare-card .desc { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+  .compare-row { display: flex; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+  .compare-key { color: var(--text-dim); min-width: 140px; flex-shrink: 0; }
+  .compare-val { color: var(--text); }
+  .pro  { color: var(--green); }
+  .con  { color: var(--red); }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+  /* ── ghost/dup badge ── */
+  .badge-ghost { background: rgba(90,96,128,0.3); color: var(--text-dim); font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .badge-dup   { background: rgba(245,197,66,0.18); color: var(--yellow); font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .badge-debt  { background: rgba(242,107,107,0.18); color: var(--red); font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .footnote { font-size: 11px; color: var(--text-dim); font-style: italic; margin-top: 6px; }
+
+  @media (max-width: 860px) {
+    .toc { display: none; }
+    .main { padding: 24px 20px; }
+    .page-header { padding: 24px 20px 20px; }
+  }
+</style>
+
+<div class="page-header">
+  <div class="tag">FDE Analysis Report</div>
+  <h1>Contract Payment Flow &mdash; Workflow Package</h1>
+  <div class="subtitle">services/ai-orchestrator/app/workflow &nbsp;&middot;&nbsp; FAR-Compliant Federal Contract Modification Processing</div>
+  <div class="meta-row">
+    <div class="meta-item"><span class="label">Date</span><span class="value">2026-06-18</span></div>
+    <div class="meta-item"><span class="label">Analyst</span><span class="value">Single-pass (run {thorough:true} for dual-analyst)</span></div>
+    <div class="meta-item"><span class="label">Map Tool</span><span class="value">repomix</span></div>
+    <div class="meta-item"><span class="label">Files Mapped</span><span class="value">27 (100% structural)</span></div>
+    <div class="meta-item"><span class="label">Files Deep-Read</span><span class="value">6 of 27 (22% &mdash; in-scope/boundary only)</span></div>
+    <div class="meta-item"><span class="label">Branch</span><span class="value">triage_debt_fix</span></div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-title">Contents</div>
+    <a href="#s1"><span class="num">1</span>Executive Summary</a>
+    <a href="#s2"><span class="num">2</span>Capability Map</a>
+    <a href="#s3"><span class="num">3</span>Personas</a>
+    <a href="#s4"><span class="num">4</span>Schema Map</a>
+    <a href="#s5"><span class="num">5</span>Duplication &amp; Ghosts</a>
+    <a href="#s6"><span class="num">6</span>Modernization Scope</a>
+    <a href="#s7"><span class="num">7</span>Method &amp; Reliability</a>
+    <a href="#s8"><span class="num">8</span>Modernization Options</a>
+  </nav>
+
+  <main class="main">
+
+    <!-- §1 EXECUTIVE SUMMARY -->
+    <section class="section" id="s1">
+      <div class="section-header">
+        <span class="num">§1</span>
+        <h2>Executive Summary</h2>
+      </div>
+
+      <div class="fi-block">
+        <span class="fi-label fi-fact">FACT</span>
+        <span class="fi-text">The <code>workflow</code> package implements a two-layer <strong>LangGraph agent system</strong> for FAR-compliant federal contract modification processing, deployed inside the <code>ai-orchestrator</code> FastAPI service.</span>
+      </div>
+
+      <p style="margin-top:14px;">The outer <strong>triage graph</strong> (<code>triage_graph.py</code>) ingests contract modifications and invoices, runs multi-agent anomaly detection and FAR-grounded adjudication, and routes each item into one of three lanes: <code>auto_process</code> (policy-cleared, reversible), <code>hitl_escalate</code> (triggers the inner SF-30 graph), or <code>return_route</code> (improper invoice / FAR 32.905). Default-deny: missing data escalates rather than clears.</p>
+
+      <p>The inner <strong>SF-30 graph</strong> (<code>graph.py</code>) assembles a complete SF-30 modification package through a frozen node sequence &mdash; lookup, classify, RAG retrieval (ADR-0005), AI draft, CO gate, consent gate, submit &mdash; compiled as a subgraph of the triage graph and sharing its MongoDB checkpointer for pause-resume across process restarts.</p>
+
+      <div class="fi-block">
+        <span class="fi-label fi-fact">FACT</span>
+        <span class="fi-text">All authority boundaries are deterministically code-enforced: FAR 43.103 consent derivation (<code>far_rules.py</code>) is pure code, never an LLM call; <code>RESERVED_ACTIONS</code> permanently excludes <code>modification_execution</code> and <code>payment_certification</code> from the auto lane regardless of AI confidence; <code>package_hash</code> (SHA-256) is computed and re-verified at CO gate, consent gate, and submit to detect post-approval mutations; the <code>execution_log</code> uses an atomic insert-before-execute pattern to make the money path replay-safe at the database layer.</span>
+      </div>
+
+      <div class="card-grid" style="margin-top:20px;">
+        <div class="card">
+          <div class="card-title">What the system does</div>
+          <div class="card-body"><p>Automates SF-30 contract modification intake &mdash; from SAM.gov contract lookup and block autofill, through FAR-grounded AI drafting, through CO HITL gate, to verified submission to the Java contract-modification-service.</p></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Why it exists</div>
+          <div class="card-body"><p>To reduce CO manual workload on routine modifications while satisfying FAR 43.102/43.103, DCAA audit completeness (5+ year retention), and the sponsor mandate that no AI system can authorize payment without a human gate.</p></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Who uses it</div>
+          <div class="card-body"><p>Contracting Officers (primary &mdash; all irreversible writes), CORs (invoice review and mod initiation), sys_admin (corpus management), DCAA auditors (post-hoc audit replay), OIG reviewers (findings tracker), Vendor PMs (invoice submission, bilateral consent).</p></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Known gaps (Phase 1 debt)</div>
+          <div class="card-body"><p>No Pydantic sub-schemas for <code>change_request</code>/<code>invoice</code> dict payloads; live SAM.gov adapter is a documented future swap (mock only); <code>mock_executor.process()</code> is a stub; transactional outbox (D3/Item 2) unimplemented.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- §2 CAPABILITY MAP -->
+    <section class="section" id="s2">
+      <div class="section-header">
+        <span class="num">§2</span>
+        <h2>Capability Map</h2>
+      </div>
+
+      <div class="callout callout-info">
+        Seven distinct capabilities identified. Three are <span class="crit crit-critical">Critical</span> (system inoperable without them). Four are <span class="crit crit-high">High</span> (significant degradation). All confidence scores are 1.00 (code evidence).
+      </div>
+
+      <div class="card" style="margin-top:18px;">
+        <div class="card-title">
+          C1 &mdash; Contract-of-Record Lookup &amp; SF-30 Field Autofill
+          <span class="crit crit-high">High</span>
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p>Deterministic, tenant-scoped SAM.gov contract resolution (no LLM). Populates SF-30 static blocks 2, 3, 6, 7, 8, 10A, 10B, 12 from the award record with source citations. Exposed as both <code>POST /workflow/contract-lookup</code> (UI autofill) and the inner graph <code>lookup_node</code>. Agency isolation enforced at query level (ADR-0006: lookup is not an LLM step).</p>
+          <p><strong>What breaks if removed:</strong> All runs gate to <code>CONTRACT_NOT_FOUND_AWAITING_CO_REVIEW</code>; SF-30 block autofill disappears; no AI substitution permitted.</p>
+          <p class="footnote">contract_lookup.py, clients.py (SamGovClient Protocol), nodes_lookup.py, router.py:112-122, sam_gov_client.py</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          C2 &mdash; Multi-Agent Triage Orchestration
+          <span class="crit crit-high">High</span>
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p>Outer LangGraph routing modifications and invoices through: <code>anomaly_detector</code> (rule-based flag scanning), <code>adjudicator</code> (LLM-grounded FAR clause verification with prompt-injection hardening), and <code>decision_router</code> (deterministic policy gate). Entry: <code>POST /workflow/triage</code>. Default-deny: missing amount/threshold data escalates. <code>RESERVED_ACTIONS</code> hard-excludes <code>modification_execution</code> and <code>payment_certification</code> from auto lane regardless of confidence (REQ-AGT-2).</p>
+          <p><strong>What breaks if removed:</strong> No intake routing; every item requires manual CO triage; idempotency, anomaly detection, and lane-based audit trail disappear.</p>
+          <p class="footnote">triage_graph.py, triage_state.py, nodes_triage.py, auto_approval_policy.py, runner.py:54-64, router.py:125-148</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          C3 &mdash; SF-30 Contract Modification Workflow (HITL Inner Graph)
+          <span class="crit crit-critical">Critical</span>
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p>Inner LangGraph StateGraph with frozen node order: lookup &rarr; validate_lookup &rarr; populate_fields &rarr; classify &rarr; derive_consent &rarr; retrieve (RAG) &rarr; confidence_check &rarr; draft &rarr; faithfulness_gate &rarr; assemble &rarr; co_gate &rarr; consent_gate &rarr; submit (or supersede on deny). Runs as the <code>hitl_escalate</code> subgraph; inherits parent MongoDB checkpointer.</p>
+          <p><strong>What breaks if removed:</strong> Entire AI-assisted SF-30 capability lost; CO must manually populate all blocks, classify modification type, draft Block 14, and manage consent tracking.</p>
+          <p class="footnote">graph.py, state.py, runner.py, nodes_lookup.py, nodes_gate.py</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          C4 &mdash; CO Review Gate &amp; Contract Execution Authority
+          <span class="crit crit-critical">Critical</span>
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p>HITL interrupt and downstream execution path ensuring only an authenticated, non-anonymous CO can approve and submit. <code>co_gate_node</code> issues a LangGraph interrupt with the <code>package_hash</code>. <code>route_after_co_gate</code> validates strictly against <code>{approved, denied}</code> &mdash; any other value routes to terminal <code>supersede</code>. Resume endpoint validates <code>X-User-Id</code> / <code>X-User-Role</code> / <code>X-Tenant-Id</code> headers, cross-checks caller tenant against checkpointed <code>agency_id</code>, and patches verified identity into graph state before resuming.</p>
+          <p><strong>What breaks if removed:</strong> Modifications could be approved by unauthenticated callers; package could be mutated between approval and submission; FAR 43.102 is unenforceable at the AI layer.</p>
+          <p class="footnote">nodes_gate.py, router.py:151-251, far_rules.py, modification_client.py, state.py:75-93</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          C5 &mdash; DCAA Audit Trail &amp; Compliance Logging
+          <span class="crit crit-critical">Critical</span>
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p>Append-only <code>workflow_audit</code> MongoDB collection. Hard frozenset of 11 allowed <code>event_type</code> strings; <code>ValueError</code> on unknown types. High-consequence events (<code>co_decision</code>, <code>contractor_consent_recorded</code>, <code>package_superseded</code>, <code>modification_submitted</code>) require <code>actor_id</code>, <code>actor_role</code>, <code>package_hash</code> in details or <code>record_event</code> raises before writing. Fail-closed: MongoDB write failure re-raises. Every record carries <code>correlation_id</code> threading through all nodes.</p>
+          <p><strong>What breaks if removed:</strong> DCAA audit reconstruction becomes impossible; FAR compliance evidence is lost.</p>
+          <p class="footnote">audit_events.py, state.py:75-93, nodes_gate.py, nodes_triage.py</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          C6 &mdash; Money-Path Idempotency &amp; Replay Safety
+          <span class="crit crit-high">High</span>
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p>Atomic idempotency ledger (<code>execution_log</code> collection). <code>claim()</code> inserts a <code>processing</code> sentinel before any side effect; unique MongoDB index on <code>idempotency_key</code> makes concurrent race-safety a DB-layer guarantee (<code>DuplicateKeyError</code> returns <code>False</code>). Failed keys locked for operator review &mdash; not auto-released, preventing delayed double-pay. <code>auto_process_node</code> refuses to execute without an <code>idempotency_key</code> (fail-closed).</p>
+          <p><strong>What breaks if removed:</strong> Concurrent message redelivery could double-execute money-path auto-process actions.</p>
+          <p class="footnote">execution_log.py, nodes_triage.py:221-266, mock_executor.py</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          C7 &mdash; AI Draft Generation &amp; RAG Grounding (Block 14)
+          <span class="crit crit-high">High</span>
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p>LLM-backed generation of SF-30 Block 14 modification description text, grounded via the ADR-0005 retrieval pipeline. <code>RetrieveClient</code> Protocol (hybrid search + RRF + cross-encoder rerank, tenant-scoped by <code>agency_id</code>). <code>llm.call_json</code> outputs Pydantic-validated structured output over Bedrock with stub detection. LLM-as-judge confidence scoring with model tier escalation (haiku &rarr; sonnet on low confidence). Fail-closed on stub or non-schema-valid LLM output (<code>LLMOutputError</code> routes to CO review).</p>
+          <p><strong>What breaks if removed:</strong> Block 14 must be drafted manually; adjudicator cannot ground verdicts in retrieved clauses.</p>
+          <p class="footnote">llm.py, clients.py (RetrieveClient Protocol), state.py (retrieved_chunks, confidence, draft_model_tier fields), nodes_triage.py (adjudicator_node)</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- §3 PERSONAS -->
+    <section class="section" id="s3">
+      <div class="section-header">
+        <span class="num">§3</span>
+        <h2>Personas</h2>
+      </div>
+
+      <p>Six personas discovered from code, PRD, domain-mapping.md, and Java service annotations. Corroboration column indicates whether the persona appears in <code>.claude/personas.md</code> (CLAUDE.md) or is code-only.</p>
+
+      <div class="persona-card">
+        <div class="persona-header">
+          <span class="persona-name">Contracting Officer (CO)</span>
+          <span class="conf conf-high">1.00</span>
+          <span class="persona-corr">code + CLAUDE.md</span>
+        </div>
+        <p><strong>Goals:</strong> Execute contract modifications lawfully within warrant authority (FAR 1.602-1); obligate funds only after explicit review; maintain a DCAA-replayable audit trail for every high-consequence action.</p>
+        <p style="margin-top:8px;"><strong>Responsibilities:</strong> Approve/deny every SF-30 mod at <code>co_gate_node</code>; trigger the irreversible submit; enforce FAR 43.103 bilateral consent ordering; certify payment-affecting actions (RESERVED_ACTIONS); curate FAR/DFARS AI corpus within own agency scope.</p>
+        <p style="margin-top:8px;"><strong>Pain points:</strong> Hard gate on every run with no auto-lane for <code>modification_execution</code> or <code>payment_certification</code>; decision is <code>package_hash</code>-bound so any post-approval package mutation forces full re-approval; identity must be non-anonymous at both orchestrator and Java service layers.</p>
+        <h4>Selected evidence</h4>
+        <ul class="evidence-list">
+          <li>auto_approval_policy.py:7-8 &mdash; RESERVED_ACTIONS separates 'authority' from 'accuracy'</li>
+          <li>nodes_gate.py:55-73 &mdash; _require_actor(): co_user_id + co_role enforced; fail-closed ValueError</li>
+          <li>ContractModificationService.java:89-99 &mdash; requireCOWarrant(): ROLE_CONTRACTING_OFFICER + tenant match (FAR 43.102)</li>
+          <li>nodes_gate.py:76-101 &mdash; co_gate_node: LangGraph interrupt; package_hash bound to interrupt payload</li>
+          <li>audit_events.py:53-63 &mdash; CO actions: actor_id + actor_role + package_hash mandatory (DCAA reconstruction)</li>
+          <li>router.py:151-245 &mdash; POST /triage/{thread_id}/resume: identity from gateway-asserted headers only</li>
+        </ul>
+      </div>
+
+      <div class="persona-card">
+        <div class="persona-header">
+          <span class="persona-name">Contracting Officer's Representative (COR)</span>
+          <span class="conf conf-high">0.95</span>
+          <span class="persona-corr">code-only</span>
+        </div>
+        <p><strong>Goals:</strong> Review AI-drafted modification rationales before CO execution; certify proper invoices or return improper ones within 7 days; initiate administrative/unilateral modification requests.</p>
+        <p style="margin-top:8px;"><strong>Pain points:</strong> Hard HITL stop on every AI-assisted invoice action with no auto-advance lane; 7-day return deadline creates pressure when gate resolution is slow; no corpus-write authority; mod routing decided by a single AI call with no visible confidence score or COR override path.</p>
+        <h4>Selected evidence</h4>
+        <ul class="evidence-list">
+          <li>main.py:337 &mdash; hitl_gate: 'cor-review-required' (executable)</li>
+          <li>main.py:444,459 &mdash; /workflow/triage routes 'admin/unilateral &rarr; COR, funding/bilateral &rarr; CO' (executable)</li>
+          <li>InvoiceReview.java:17-21 &mdash; COR certifies or returns within 7 days (FAR 32.905)</li>
+          <li>prd:85-86 &mdash; Goal G1: 'A COR/CO gets an AI-drafted modification rationale on demand'</li>
+        </ul>
+      </div>
+
+      <div class="persona-card">
+        <div class="persona-header">
+          <span class="persona-name">System Administrator (sys_admin)</span>
+          <span class="conf conf-high">0.97</span>
+          <span class="persona-corr">code-only</span>
+        </div>
+        <p><strong>Goals:</strong> Maintain platform-wide operational integrity across all tenant agencies: keep the FAR/DFARS corpus current, manage user accounts and roles cross-tenant, monitor the full system audit trail.</p>
+        <p style="margin-top:8px;"><strong>Pain points:</strong> Header-spoofing is the highest-privilege attack vector targeting this role (<code>ClaimsHeaderFilter.java:37</code>); BCrypt cost=4 debt (D-059) weakens the user-provisioning path; async audit-write race gaps (Item 2) produce silent under-reporting in the cross-tenant audit view.</p>
+        <h4>Selected evidence</h4>
+        <ul class="evidence-list">
+          <li>ingestion/auth.py:28 &mdash; _CORPUS_WRITE_ROLES = {'contracting_officer', 'sys_admin'}</li>
+          <li>ingestion/auth.py:33-34 &mdash; _GLOBAL_CORPUS_ROLES = {'sys_admin'} &mdash; sole role for unscoped global corpus</li>
+          <li>AdminUserController.java:21-58 &mdash; cross-agency provision, updateRoles, forceMfaReset</li>
+          <li>ClaimsHeaderFilter.java:37 &mdash; X-User-Role: sys_admin as header-spoofing attack vector</li>
+        </ul>
+      </div>
+
+      <div class="persona-card">
+        <div class="persona-header">
+          <span class="persona-name">OIG Reviewer (Inspector General)</span>
+          <span class="conf conf-high">0.90</span>
+          <span class="persona-corr">code-only</span>
+        </div>
+        <p><strong>Goals:</strong> Conduct independent oversight examining the append-only audit trail and OIG-style findings; detect irregularities; track remediation to closure.</p>
+        <p style="margin-top:8px;"><strong>Pain points:</strong> Item 2 (audit-log race): async flush drops rows on crash. Item 6 (correlationId inconsistency): cross-service MDC key mismatch makes <code>findByCorrelationId</code> return half-empty results. Item 10 (no agency filter on reports): <code>/api/reports/oig-findings-status</code> does not filter by agency claim.</p>
+        <h4>Selected evidence</h4>
+        <ul class="evidence-list">
+          <li>AuditSearchService.java:13 &mdash; oig_reviewer named as consumer of /admin/audit search view</li>
+          <li>FindingController.java:11 &mdash; 'OIG-style findings tracker. Backs the /admin/findings view'</li>
+          <li>ReportsController.java:21 &mdash; /api/reports/oig-findings-status among 5 system reports</li>
+        </ul>
+      </div>
+
+      <div class="persona-card">
+        <div class="persona-header">
+          <span class="persona-name">DCAA Auditor</span>
+          <span class="conf conf-med">0.88</span>
+          <span class="persona-corr">code-only</span>
+        </div>
+        <p><strong>Goals:</strong> Reconstruct who authorized every modification and invoice payment, under what authority; verify AI did not substitute for required human gates; examine cost-type invoices for FAR 31.205 unallowable costs.</p>
+        <p style="margin-top:8px;"><strong>Pain points:</strong> No interactive UI or structured query API in Phase 1 (DCAA audit-response workflows explicitly out of scope); Item 2 audit-log race can silently drop pre-workflow audit entries; Item 6 inconsistent correlation IDs prevent reliable cross-service log joins.</p>
+        <h4>Selected evidence</h4>
+        <ul class="evidence-list">
+          <li>audit_events.py:11-14 &mdash; 'DCAA traceability' as functional requirement for fail-closed audit log</li>
+          <li>audit_events.py:53-63 &mdash; _REQUIRED_HC_KEYS = ('actor_id', 'actor_role', 'package_hash') &mdash; 'mandatory for DCAA reconstruction'</li>
+          <li>anomaly_rules.py:15-16 &mdash; UNIT_PRICE_VARIANCE_LIMIT = 0.10 &mdash; 'DCAA-style price-reasonableness trigger'</li>
+          <li>domain-mapping.md:22 &mdash; explicit named stakeholder: 'DCAA auditor'</li>
+        </ul>
+      </div>
+
+      <div class="persona-card">
+        <div class="persona-header">
+          <span class="persona-name">Vendor / Contractor Program Manager</span>
+          <span class="conf conf-med">0.85</span>
+          <span class="persona-corr">code-only</span>
+        </div>
+        <p><strong>Goals:</strong> Receive timely payment (5 CFR 1315 Prompt Pay, 30-day due date); understand modification scope; rebut unfavorable CPARS ratings; track proposal and payment status via self-service portal.</p>
+        <p style="margin-top:8px;"><strong>Pain points:</strong> Invoice returned as improper without machine-readable FAR clause citations (cited_clauses always empty &mdash; Item 4 debt); cross-agency vendor record leak on GET /api/vendors (Item 10); bilateral consent is a boolean flag with no vendor-facing sign endpoint; CPARS rebuttal deadline enforced only by data shape with no gateway or reminder.</p>
+        <h4>Selected evidence</h4>
+        <ul class="evidence-list">
+          <li>VendorController.java:50-55 &mdash; GET /api/vendors/{id}/proposals: 'Vendor self-portal &mdash; list of MY proposals'</li>
+          <li>ContractModification.java:78 &mdash; contractorConsentRequired boolean (FAR 43.103)</li>
+          <li>Cpar.java:31,34 &mdash; vendorRebuttal + rebuttalDueAt (FAR 42.15)</li>
+          <li>main.py:252-278 &mdash; /answer-qa: 'answers vendor PM questions about a modification or payment'</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- §4 SCHEMA MAP -->
+    <section class="section" id="s4">
+      <div class="section-header">
+        <span class="num">§4</span>
+        <h2>Schema Map</h2>
+      </div>
+
+      <div class="callout callout-err">
+        <strong>3 missing sub-schemas:</strong> <code>change_request</code>, <code>invoice</code>, and nested shapes within <code>populated_fields</code> / <code>block13_classification</code> are all untyped <code>dict</code> in the model. Shapes reconstructed from runtime consumers only.
+      </div>
+      <div class="callout callout-warn" style="margin-top:6px;">
+        <strong>2 ghost TypedDict fields:</strong> <code>co_user_id</code> and <code>co_role</code> are injected at resume time from gateway headers but are NOT declared in <code>WorkflowState</code>.
+      </div>
+
+      <h3>WorkflowState (TypedDict &mdash; state.py:26-73)</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Constraint</th><th>File:Line</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr><td class="td-code">correlation_id</td><td class="td-code">str</td><td>UUID; required &mdash; record_event raises if absent</td><td class="td-muted">state.py:34</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">agency_id</td><td class="td-code">str</td><td>Tenant scope; verified state only, never request body</td><td class="td-muted">state.py:36</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">contract_number</td><td class="td-code">str</td><td>e.g. GS-35F-0001V</td><td class="td-muted">state.py:40</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">change_request</td><td class="td-code">dict</td><td class="td-warn">NO sub-schema. Shape reconstructed from consumers: contract_ceiling, current_obligated, funding_delta, changes_scope, price_impact, funding_citation, scope</td><td class="td-muted">state.py:41; anomaly_rules.py:23-41</td><td class="td-warn">reconstructed</td></tr>
+            <tr><td class="td-code">contract_record</td><td class="td-code">dict</td><td>Keys: match, static_fields, source_citation</td><td class="td-muted">nodes_lookup.py:81,97</td><td class="td-warn">reconstructed</td></tr>
+            <tr><td class="td-code">populated_fields</td><td class="td-code">dict</td><td class="td-warn">SF-30 block-string &rarr; {value: str, source_citation: dict} &mdash; no sub-model; included verbatim in package_hash serialization</td><td class="td-muted">nodes_form.py:79; nodes_lookup.py:98-103</td><td class="td-warn">reconstructed</td></tr>
+            <tr><td class="td-code">form_draft_id</td><td class="td-code">str</td><td>ID of the ContractModification draft</td><td class="td-muted">state.py:46</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">block13_classification</td><td class="td-code">dict</td><td class="td-warn">Runtime shape = Block13Proposal fields PLUS retrieved_clause_ids[], model, model_version. CO gate interrupt exposes this dict directly to the UI (nodes_gate.py:89)</td><td class="td-muted">nodes_classify.py:73-82</td><td class="td-warn">reconstructed</td></tr>
+            <tr><td class="td-code">retrieved_chunks</td><td class="td-code">list[dict]</td><td>ADR-0005 §1 documents; each has chunk_id, chunk_text</td><td class="td-muted">state.py:53</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">confidence</td><td class="td-code">float</td><td>0-1; below CONFIDENCE_THRESHOLD triggers Sonnet fallback</td><td class="td-muted">state.py:54</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">draft_model_tier</td><td class="td-code">str</td><td>haiku | sonnet</td><td class="td-muted">state.py:55</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">draft_model</td><td class="td-code">str</td><td>Bedrock model ID</td><td class="td-muted">state.py:57</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">block_14_draft</td><td class="td-code">str</td><td>ADR-0005 §1 generated text for SF-30 Block 14</td><td class="td-muted">state.py:58</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">package_hash</td><td class="td-code">str</td><td>SHA-256 hex of populated_fields + block_14_draft + block13_classification (sort_keys=True); DCAA audit binding</td><td class="td-muted">state.py:61; compute_package_hash:75-93</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">gate_status</td><td class="td-code">str</td><td>14 enum-like values incl. OK, CONTRACT_NOT_FOUND_AWAITING_CO_REVIEW, SUBMITTED, BLOCKED_HASH_MISMATCH, MISSING_IDEMPOTENCY_KEY_AWAITING_REVIEW</td><td class="td-muted">nodes_lookup.py:31-37; nodes_gate.py:159,176</td><td class="td-warn">reconstructed</td></tr>
+            <tr><td class="td-code">co_decision</td><td class="td-code">str</td><td>pending | approved | denied</td><td class="td-muted">state.py:66</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">modification_bilateral</td><td class="td-code">bool</td><td>DERIVED server-side from modType (FAR 43.103); NEVER set by LLM</td><td class="td-muted">state.py:67</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">contractor_consent</td><td class="td-code">str</td><td>not_required | pending | recorded | hash_mismatch</td><td class="td-muted">nodes_gate.py:156,175-176</td><td class="td-warn">reconstructed</td></tr>
+            <tr><td class="td-code">co_execution</td><td class="td-code">str</td><td>pending | executed | aborted</td><td class="td-muted">state.py:70</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">co_user_id</td><td class="td-code">str</td><td class="td-err">NOT declared in TypedDict &mdash; ghost field. Injected at resume from X-User-Id header</td><td class="td-muted">router.py:234; nodes_gate.py:62</td><td class="td-warn">reconstructed</td></tr>
+            <tr><td class="td-code">co_role</td><td class="td-code">str</td><td class="td-err">NOT declared in TypedDict &mdash; ghost field. Injected from X-User-Role header</td><td class="td-muted">router.py:235; nodes_gate.py:63</td><td class="td-warn">reconstructed</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>TriageState (TypedDict extends WorkflowState &mdash; triage_state.py:14-23)</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Constraint</th><th>File:Line</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr><td class="td-code">item_type</td><td class="td-code">str</td><td>modification | invoice &mdash; manual HTTPException 422</td><td class="td-muted">triage_state.py:18; router.py:45</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">idempotency_key</td><td class="td-code">str</td><td>Money-path dedupe (REQ-AGT-2); unique index in execution_log</td><td class="td-muted">triage_state.py:19</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">anomaly_flags</td><td class="td-code">list[dict]</td><td>Elements: {code, detail, far_part, severity: high|medium}</td><td class="td-muted">anomaly_rules.py:27-31</td><td class="td-warn">reconstructed</td></tr>
+            <tr><td class="td-code">adjudications</td><td class="td-code">list[dict]</td><td>Elements: {flag_code, verdict: substantiated|dismissed, far_cite, precedent_id, note?}</td><td class="td-muted">nodes_triage.py:129,150-156</td><td class="td-warn">reconstructed</td></tr>
+            <tr><td class="td-code">lane</td><td class="td-code">str</td><td>auto_process | hitl_escalate | return_route</td><td class="td-muted">triage_state.py:22; nodes_triage.py:176-216</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">disposition_rationale</td><td class="td-code">str</td><td>Human-readable lane reason; written to audit trail per REQ-AGT-4</td><td class="td-muted">triage_state.py:23</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">invoice</td><td class="td-code">dict | None</td><td class="td-warn">NO sub-schema. Shape: {unit_price_variance_pct, missing_elements, flagged_unallowable, amount, threshold, reversible, within_delegated_authority, action}</td><td class="td-muted">router.py:49; anomaly_rules.py:46-78; nodes_triage.py:162-173</td><td class="td-warn">reconstructed</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>WorkflowAuditRecord (Pydantic BaseModel &mdash; audit_events.py:70-79)</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Constraint</th><th>File:Line</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr><td class="td-code">audit_id</td><td class="td-code">str</td><td>uuid4 default; unique per event</td><td class="td-muted">audit_events.py:73</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">correlation_id</td><td class="td-code">str</td><td>Required; ValueError raised if absent</td><td class="td-muted">audit_events.py:74; 114-119</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">event_type</td><td class="td-code">str</td><td>Must be in WORKFLOW_EVENT_TYPES (frozenset of 11); ValueError on unknown</td><td class="td-muted">audit_events.py:75; 39-51</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">agency_id</td><td class="td-code">str | None</td><td>Nullable; tenant scope</td><td class="td-muted">audit_events.py:76</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">form_draft_id</td><td class="td-code">str | None</td><td>Nullable</td><td class="td-muted">audit_events.py:77</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">timestamp</td><td class="td-code">datetime &rarr; ISO str</td><td>UTC; stored as isoformat() string, not native datetime</td><td class="td-muted">audit_events.py:78,132</td><td class="td-ok">code</td></tr>
+            <tr><td class="td-code">details</td><td class="td-code">dict[str, Any]</td><td>High-consequence events MUST include actor_id, actor_role, package_hash or ValueError raised before write</td><td class="td-muted">audit_events.py:79; 55-63</td><td class="td-ok">code</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Other Entities</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Entity</th><th>Kind</th><th>File</th><th>Key Constraints</th></tr></thead>
+          <tbody>
+            <tr><td class="td-code">Block13Proposal</td><td>Pydantic BaseModel</td><td class="td-muted">nodes_classify.py:31-40</td><td>block13_path (13A-13D) &mdash; no Pydantic literal validator; mod_type, far_basis, confidence 0-1</td></tr>
+            <tr><td class="td-code">Adjudication</td><td>Pydantic BaseModel</td><td class="td-muted">nodes_triage.py:38-43</td><td>verdict (substantiated|dismissed); non-conforming treated as substantiated (fail-safe); far_cite required for dismissal</td></tr>
+            <tr><td class="td-code">ExecutionLogRecord</td><td>MongoDB doc (no Pydantic)</td><td class="td-muted">execution_log.py:36-88</td><td>UNIQUE index on idempotency_key; status: processing &rarr; done|failed; failed keys locked for manual clearance</td></tr>
+            <tr><td class="td-code">TriageRequest</td><td>Pydantic BaseModel</td><td class="td-muted">router.py:42-50</td><td>change_request dict|None &mdash; missing sub-schema; invoice dict|None &mdash; missing sub-schema</td></tr>
+            <tr><td class="td-code">ResumeRequest / CoDecision</td><td>Pydantic BaseModel / str enum</td><td class="td-muted">router.py:53-73</td><td>decision: approved|denied only; HTTP 422 on any other value before handler runs</td></tr>
+            <tr><td class="td-code">AnomalyFlag</td><td>dict (no Pydantic)</td><td class="td-muted">anomaly_rules.py:19-78</td><td>Codes: FUNDING_CEILING_BREACH, OUT_OF_SCOPE, UNIT_PRICE_VARIANCE, IMPROPER_INVOICE, UNALLOWABLE_COST; severity: high|medium</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Missing Schemas (priority order)</h3>
+      <div class="callout callout-err">
+        <strong>P1 &mdash; change_request dict</strong><br>
+        Typed as <code>dict|None</code> in TriageRequest (router.py:48) and <code>dict</code> in WorkflowState (state.py:41). Shape reconstructed from consumers: <code>contract_ceiling</code>, <code>current_obligated</code>, <code>funding_delta</code>, <code>changes_scope</code> (anomaly_rules.py:23-41); <code>price_impact</code>, <code>funding_citation</code> (nodes_form.py:88-89); <code>scope</code> (nodes_retrieval.py:49, nodes_classify.py:55).
+      </div>
+      <div class="callout callout-err">
+        <strong>P1 &mdash; invoice dict</strong><br>
+        Typed as <code>dict|None</code> in TriageRequest (router.py:49). Shape reconstructed from <code>anomaly_rules._scan_invoice</code>: <code>unit_price_variance_pct</code>, <code>missing_elements</code>, <code>flagged_unallowable</code> (anomaly_rules.py:46-78); <code>amount</code>, <code>threshold</code>, <code>reversible</code>, <code>within_delegated_authority</code>, <code>action</code> (nodes_triage.py:162-173).
+      </div>
+      <div class="callout callout-warn">
+        <strong>P2 &mdash; populated_fields value shape</strong><br>
+        Runtime per-block value shape is <code>{value: str, source_citation: dict}</code> reconstructed from nodes_lookup.py:98-103. No sub-model. Included verbatim in package_hash serialization &mdash; any shape drift silently corrupts hash verification.
+      </div>
+      <div class="callout callout-warn">
+        <strong>P2 &mdash; block13_classification nested shape</strong><br>
+        Declared as <code>dict</code> in WorkflowState (state.py:49). Runtime shape is Block13Proposal fields PLUS provenance additions <code>retrieved_clause_ids[]</code>, <code>model</code>, <code>model_version</code> (nodes_classify.py:73-82). CO gate interrupt exposes this dict directly to the UI (nodes_gate.py:89) &mdash; frontend must deserialize correctly.
+      </div>
+    </section>
+
+    <!-- §5 DUPLICATION & GHOSTS -->
+    <section class="section" id="s5">
+      <div class="section-header">
+        <span class="num">§5</span>
+        <h2>Duplication &amp; Ghosts</h2>
+      </div>
+
+      <h3>Duplications</h3>
+      <div class="card">
+        <div class="card-title">
+          <span class="badge-dup">Duplication</span>
+          MockSamGovClient &mdash; dual module-level singletons
+          <span class="conf conf-high">0.95</span>
+        </div>
+        <div class="card-body">
+          <p><code>_sam_gov = MockSamGovClient()</code> is instantiated independently in both <code>nodes_lookup.py:26</code> and <code>router.py:39</code>, creating two separate instances rather than a shared singleton.</p>
+          <div class="fi-block" style="margin-top:10px;">
+            <span class="fi-label fi-infer">INFER</span>
+            <span class="fi-text">For the Phase 1 mock this is harmless &mdash; MockSamGovClient has no shared connection state. When the live SAM.gov adapter replaces the mock, two independent instances would duplicate connection pool state and make the swap error-prone.</span>
+          </div>
+          <div class="fi-block">
+            <span class="fi-label fi-rec">REC</span>
+            <span class="fi-text">Consolidate to a single shared instance (module-level import from a dedicated <code>deps.py</code> or FastAPI <code>Depends</code> singleton) before the live adapter lands. Low-urgency until Phase 2 adapter work begins.</span>
+          </div>
+        </div>
+      </div>
+
+      <h3>Ghosts (present on disk, add no capability)</h3>
+      <div class="card">
+        <div class="card-title">
+          <span class="badge-ghost">Ghost</span>
+          sam_gov_client.py &mdash; pure re-export shim
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p>Single line: <code>from app.workflow.clients import SamGovClient as SamGovClient</code>. Exists only for import aliasing per m3.md file layout. No business logic, no capability cluster.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span class="badge-ghost">Ghost</span>
+          Live SAM.gov Adapter &mdash; comment-only reference
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p>Referenced in <code>clients.py:54-55</code> docstring as a planned 'client-internal swap' but no live implementation file exists. <code>MockSamGovClient</code> is the only <code>SamGovClient</code> implementor. Acknowledged Phase 1 debt &mdash; do not count as a real capability.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span class="badge-debt">Debt</span>
+          mock_executor.process() &mdash; stub side-effect recorder
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p><code>mock_executor.py:19-23</code> &mdash; <code>process()</code> calls <code>execution_log.mark_processed()</code> which does not exist in the real module (which only has <code>claim</code> / <code>mark_done</code> / <code>mark_failed</code>). The real downstream executor is described only in the module docstring. Phase 1 stub &mdash; real capability unimplemented in this package.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span class="badge-debt">Debt</span>
+          Transactional Outbox Pattern &mdash; D3/Item 2
+          <span class="conf conf-high">1.00</span>
+        </div>
+        <div class="card-body">
+          <p><code>nodes_triage.py:259-263</code> &mdash; comment explicitly labels this as debt D3/Item 2 (execute + audit atomicity for real executor). No implementation present. Future requirement, not current capability.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- §6 SCOPE MAP -->
+    <section class="section" id="s6">
+      <div class="section-header">
+        <span class="num">§6</span>
+        <h2>Modernization Scope Map</h2>
+      </div>
+
+      <p>Scope is defined relative to the React/Next.js frontend modernization target. Covers the 27 files in <code>services/ai-orchestrator/app/workflow/</code>.</p>
+
+      <h3>Boundary files (deep-read) &mdash; 6 files</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>File</th><th>Scope</th><th>Boundary Contract</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-code">router.py</td>
+              <td><span class="scope-pill scope-bound">Boundary</span></td>
+              <td>4 HTTP endpoints: GET /_status, POST /contract-lookup, POST /triage (TriageRequest), POST /triage/{thread_id}/resume (ResumeRequest). Identity exclusively from X-User-Id / X-User-Role / X-Tenant-Id gateway headers &mdash; frontend must not send auth tokens directly. Missing sub-schemas for change_request and invoice must be reverse-engineered for React form types.</td>
+            </tr>
+            <tr>
+              <td class="td-code">state.py</td>
+              <td><span class="scope-pill scope-bound">Boundary</span></td>
+              <td>WorkflowState TypedDict &mdash; JSON payload shape received in triage responses and interrupt payloads. Key rendering fields: gate_status, co_decision, confidence, block_14_draft, populated_fields (block display), block13_classification (classification display).</td>
+            </tr>
+            <tr>
+              <td class="td-code">triage_state.py</td>
+              <td><span class="scope-pill scope-bound">Boundary</span></td>
+              <td>TriageState extends WorkflowState. <code>lane</code> determines UI branch (auto_process vs hitl_escalate vs return_route). anomaly_flags / adjudications drive CO review detail panel.</td>
+            </tr>
+            <tr>
+              <td class="td-code">audit_events.py</td>
+              <td><span class="scope-pill scope-bound">Boundary</span></td>
+              <td>WorkflowAuditRecord Pydantic model; WORKFLOW_EVENT_TYPES frozenset (11 values); _HIGH_CONSEQUENCE_EVENTS. Defines shape of audit records displayed in the CO/OIG-facing audit trail view.</td>
+            </tr>
+            <tr>
+              <td class="td-code">auto_approval_policy.py</td>
+              <td><span class="scope-pill scope-bound">Boundary</span></td>
+              <td>RESERVED_ACTIONS = {'modification_execution', 'payment_certification'} hard-excluded from auto-processing. may_auto_process() return value determines whether frontend shows CO-gate review or auto-approved confirmation. Frontend must never render an auto-approve path for these action types regardless of confidence score.</td>
+            </tr>
+            <tr>
+              <td class="td-code">nodes_gate.py</td>
+              <td><span class="scope-pill scope-bound">Boundary</span></td>
+              <td>CO decision UI: exactly two choices (approved|denied) tied to package_hash; fail-closed &mdash; any non-{approved,denied} value routes to terminal supersede. Bilateral mods pause for contractor consent. Two terminal outcomes the frontend must communicate: submit or supersede.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Out-of-scope files (signature-level only) &mdash; 21 files</h3>
+      <div class="callout callout-info">
+        Out-of-scope files were mapped at signature level only &mdash; function names, imports, and module docstrings. Internal logic and local variables were not read. Results surface via the boundary contracts above.
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>File</th><th>Rationale</th></tr></thead>
+          <tbody>
+            <tr><td class="td-code">__init__.py</td><td class="td-muted">Package init &mdash; no API surface.</td></tr>
+            <tr><td class="td-code">anomaly_rules.py</td><td class="td-muted">Pure backend detection logic; anomaly_flags surface in TriageState (boundary).</td></tr>
+            <tr><td class="td-code">clients.py</td><td class="td-muted">Internal Protocol definitions &mdash; backend dependency injection contracts.</td></tr>
+            <tr><td class="td-code">contract_lookup.py</td><td class="td-muted">Backend implementation; frontend calls POST /contract-lookup via router.py (boundary).</td></tr>
+            <tr><td class="td-code">execution_log.py</td><td class="td-muted">Idempotency log &mdash; backend infrastructure.</td></tr>
+            <tr><td class="td-code">far_rules.py</td><td class="td-muted">Deterministic FAR 43.103 consent rule; result surfaces via gate_status/lane (boundary).</td></tr>
+            <tr><td class="td-code">form_tools.py</td><td class="td-muted">Backend form-field writer; populated_fields shape (missing-schema flag) is a boundary concern.</td></tr>
+            <tr><td class="td-code">graph.py</td><td class="td-muted">LangGraph SF-30 inner workflow assembly &mdash; pure backend orchestration.</td></tr>
+            <tr><td class="td-code">llm.py</td><td class="td-muted">Structured-output Bedrock LLM wrapper &mdash; backend only.</td></tr>
+            <tr><td class="td-code">mock_executor.py</td><td class="td-muted">Stub/ghost &mdash; no frontend surface.</td></tr>
+            <tr><td class="td-code">mock_sam_gov_client.py</td><td class="td-muted">Phase 1 mock SAM.gov client &mdash; backend test double.</td></tr>
+            <tr><td class="td-code">modification_client.py</td><td class="td-muted">HTTP client to Java :8081 &mdash; service-to-service, not frontend boundary.</td></tr>
+            <tr><td class="td-code">nodes_classify.py</td><td class="td-muted">Block13Proposal model defines runtime shape of block13_classification (missing-schema flag) &mdash; node is pure backend.</td></tr>
+            <tr><td class="td-code">nodes_form.py</td><td class="td-muted">SF-30 field-population node &mdash; backend.</td></tr>
+            <tr><td class="td-code">nodes_lookup.py</td><td class="td-muted">SAM.gov lookup node (contains duplication flag) &mdash; backend.</td></tr>
+            <tr><td class="td-code">nodes_retrieval.py</td><td class="td-muted">RAG retrieval node &mdash; backend.</td></tr>
+            <tr><td class="td-code">nodes_triage.py</td><td class="td-muted">Triage graph nodes and outbox debt (D3/Item 2) &mdash; backend; lane result surfaces in TriageState (boundary).</td></tr>
+            <tr><td class="td-code">retrieve_client.py</td><td class="td-muted">ADR-0005 retrieval client &mdash; backend infrastructure.</td></tr>
+            <tr><td class="td-code">runner.py</td><td class="td-muted">MongoDB-checkpointed entry points called by router.py (boundary), not directly by the frontend.</td></tr>
+            <tr><td class="td-code">sam_gov_client.py</td><td class="td-muted">Pure re-export shim (ghost file) &mdash; no logic, no frontend surface.</td></tr>
+            <tr><td class="td-code">triage_graph.py</td><td class="td-muted">Outer triage graph assembly &mdash; pure backend orchestration.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- §7 METHOD & RELIABILITY -->
+    <section class="section" id="s7">
+      <div class="section-header">
+        <span class="num">§7</span>
+        <h2>Method &amp; Reliability</h2>
+      </div>
+
+      <div class="card-grid">
+        <div class="card"><div class="card-title">Map Tool</div><div class="card-body"><p>repomix &mdash; whole-repo structural map</p></div></div>
+        <div class="card"><div class="card-title">Structural Coverage</div><div class="card-body"><p>27 files &mdash; 100% of the workflow package</p></div></div>
+        <div class="card"><div class="card-title">Deep-Read</div><div class="card-body"><p>6 files (22%) &mdash; in-scope/boundary files only</p></div></div>
+        <div class="card"><div class="card-title">Analyst Mode</div><div class="card-body"><p>Single-pass. Run {thorough:true} for dual-analyst agreement.</p></div></div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div class="coverage-bar-wrap">
+          <div class="coverage-bar-label"><span>Structural map (all 27 files)</span><span>100%</span></div>
+          <div class="coverage-bar-bg"><div class="coverage-bar-fill" style="width:100%; background: var(--green);"></div></div>
+        </div>
+        <div class="coverage-bar-wrap">
+          <div class="coverage-bar-label"><span>Deep-read (in-scope + boundary, 6 of 27)</span><span>22%</span></div>
+          <div class="coverage-bar-bg"><div class="coverage-bar-fill" style="width:22%; background: var(--accent);"></div></div>
+        </div>
+      </div>
+
+      <div class="callout callout-warn" style="margin-top:16px;">
+        <strong>Out-of-scope files were mapped at signature level, not body-read.</strong> Function names, imports, and module docstrings are available for all 21 out-of-scope files; internal logic, local variable names, and inlined constants were not read. Inferences derived from out-of-scope files are labeled INFER or REC accordingly.
+      </div>
+      <div class="callout callout-info">
+        <strong>Single-analyst pass.</strong> Run with <code>{"{"}thorough:true{"}"}</code> for dual-analyst agreement (bias-mitigated, adversarial pass). Confidence scores in this report reflect single-analyst assessment.
+      </div>
+
+      <h3>Evidence Hierarchy</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>Weight</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td class="td-ok">code</td><td>Highest</td><td>Directly executable: TypedDict fields, Pydantic models, function signatures, guard clauses, enum values</td></tr>
+            <tr><td class="td-warn">reconstructed</td><td>High</td><td>Shape inferred from multiple call sites; consistent across consumers; all cites listed</td></tr>
+            <tr><td class="td-muted">comment-only</td><td>Low</td><td>Code comment or docstring reference; demoted; cannot be relied upon as invariant &mdash; labeled explicitly</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- §8 MODERNIZATION OPTIONS -->
+    <section class="section" id="s8">
+      <div class="section-header">
+        <span class="num">§8</span>
+        <h2>Modernization Options</h2>
+      </div>
+
+      <div class="callout callout-info">
+        Two frontend profiles are presented below for the in-scope frontend modernization. <strong>No recommendation is made here.</strong> Profile selection happens via <code>/fde-plan &lt;target&gt;</code> after stakeholder review. Each profile is evaluated against the boundary contracts defined in §6.
+      </div>
+
+      <div class="compare-wrap" style="margin-top:20px;">
+        <div class="compare-card">
+          <h4>Profile A &mdash; React SPA (Vite + React 18)</h4>
+          <div class="desc">Client-rendered single-page application. State management via Zustand or React Query. Gateway-routed REST calls to the 4 boundary endpoints.</div>
+
+          <div class="compare-row"><span class="compare-key">Routing</span><span class="compare-val">React Router v6; client-side</span></div>
+          <div class="compare-row"><span class="compare-key">Data fetching</span><span class="compare-val">React Query (cache + retry for LangGraph pause/resume polling)</span></div>
+          <div class="compare-row"><span class="compare-key">State</span><span class="compare-val">Zustand slice per workflow run; persisted to sessionStorage for resume after interrupt</span></div>
+          <div class="compare-row"><span class="compare-key">SF-30 form types</span><span class="compare-val">React Hook Form + Zod schemas derived from TriageRequest / WorkflowState boundary contracts</span></div>
+          <div class="compare-row"><span class="compare-key">CO gate interrupt</span><span class="compare-val">Polling GET /:thread_id or SSE; POST /resume with CoDecision body</span></div>
+          <div class="compare-row"><span class="compare-key">RESERVED_ACTIONS</span><span class="compare-val">Client-enforced gate: hide auto-approve branch when action in RESERVED_ACTIONS (auto_approval_policy.py boundary)</span></div>
+          <div class="compare-row"><span class="compare-key">Auth headers</span><span class="compare-val">X-User-Id / X-User-Role / X-Tenant-Id injected exclusively by API gateway; SPA sends no auth tokens (router.py boundary)</span></div>
+          <div class="compare-row"><span class="compare-key">Audit trail UI</span><span class="compare-val">Read-only table of WorkflowAuditRecord; filter by correlation_id, event_type (WORKFLOW_EVENT_TYPES frozenset)</span></div>
+
+          <hr class="divider">
+          <div class="compare-row"><span class="compare-key pro">Pros</span><span class="compare-val pro">Smaller footprint; no server runtime; simpler deploy (S3 + CloudFront); team familiarity</span></div>
+          <div class="compare-row"><span class="compare-key con">Cons</span><span class="compare-val con">No SSR for initial CO review payload; polling adds latency on gate interrupt; CORS must allow gateway domain; no edge caching of FAR clause lookups</span></div>
+          <div class="compare-row"><span class="compare-key td-warn">Schema risk</span><span class="compare-val td-warn">change_request and invoice dict shapes must be reverse-engineered from backend consumers for Zod form schemas</span></div>
+        </div>
+
+        <div class="compare-card">
+          <h4>Profile B &mdash; Next.js 14 (App Router)</h4>
+          <div class="desc">Hybrid SSR/CSR. Server Components fetch initial WorkflowState for CO review; Client Components handle interactive CO gate and SF-30 form. BFF pattern via Route Handlers.</div>
+
+          <div class="compare-row"><span class="compare-key">Routing</span><span class="compare-val">File-system routes; App Router with nested layouts per workflow lane</span></div>
+          <div class="compare-row"><span class="compare-key">Data fetching</span><span class="compare-val">Server Components for initial triage result; Client Components + SWR for CO gate polling</span></div>
+          <div class="compare-row"><span class="compare-key">State</span><span class="compare-val">Server state via React Cache; client interrupt state in Zustand; thread_id in URL params for resumability</span></div>
+          <div class="compare-row"><span class="compare-key">SF-30 form types</span><span class="compare-val">Zod schemas shared between Route Handlers (server validation) and Client Components (client validation)</span></div>
+          <div class="compare-row"><span class="compare-key">CO gate interrupt</span><span class="compare-val">Route Handler proxies POST /resume; can inject gateway identity headers server-side before forwarding</span></div>
+          <div class="compare-row"><span class="compare-key">RESERVED_ACTIONS</span><span class="compare-val">Enforced at Route Handler (server) + Client Component (display); dual enforcement reduces bypass risk</span></div>
+          <div class="compare-row"><span class="compare-key">Auth headers</span><span class="compare-val">Route Handler adds X-User-Id / X-User-Role / X-Tenant-Id from session before proxying &mdash; headers never exposed to browser JS</span></div>
+          <div class="compare-row"><span class="compare-key">Audit trail UI</span><span class="compare-val">Server Component renders audit table with streaming Suspense; correlation_id deep-link via URL</span></div>
+
+          <hr class="divider">
+          <div class="compare-row"><span class="compare-key pro">Pros</span><span class="compare-val pro">SSR for initial CO review payload (faster TTFB); Route Handler BFF hides gateway auth headers from browser; shared Zod schemas reduce missing-schema type drift; edge caching of FAR clause static content</span></div>
+          <div class="compare-row"><span class="compare-key con">Cons</span><span class="compare-val con">Node.js server runtime required (ECS/Lambda@Edge); higher deploy complexity; App Router mental model for teams new to it; larger operational footprint than SPA</span></div>
+          <div class="compare-row"><span class="compare-key td-warn">Schema risk</span><span class="compare-val td-warn">change_request and invoice dict shapes still must be reverse-engineered, but shared server/client Zod schemas reduce surface area of type drift</span></div>
+        </div>
+      </div>
+
+      <div class="callout callout-warn" style="margin-top:20px;">
+        <strong>Common pre-condition for both profiles:</strong> The 3 missing Pydantic sub-schemas (change_request, invoice, populated_fields value shape) and 2 ghost TypedDict fields (co_user_id, co_role) must be formalized on the backend before frontend type generation can be fully automated. This is a Phase 1 debt item independent of profile selection.
+      </div>
+      <div class="callout callout-info">
+        To proceed: run <code>/fde-plan profile-a</code> or <code>/fde-plan profile-b</code> after team decision. The plan will decompose boundary contracts into concrete React interface definitions, form schemas, and API client stubs.
+      </div>
+    </section>
+
+  </main>
+</div>
+
+</body></html>

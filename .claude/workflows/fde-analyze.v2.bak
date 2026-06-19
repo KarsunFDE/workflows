@@ -1,0 +1,387 @@
+export const meta = {
+  name: 'fde-analyze',
+  description: 'FDE codebase analysis arm: exhaustive cited read of the whole repo via blind dual-analyst fan-out, reconciled, clustered by business capability, scope-tagged for an Angular -> React/Next.js modernization. Reads only; writes nothing to the repo; returns one analysis report.',
+  whenToUse: 'Run before modernizing a legacy codebase to get a verified, evidence-cited map of features, data/schema, business rules, personas, debt, security, and modernization scope. Pairs with /fde-plan (the planning arm) which runs after a target is chosen.',
+  phases: [
+    { title: 'Load' },
+    { title: 'Discover' },
+    { title: 'Read' },
+    { title: 'Reconcile' },
+    { title: 'Merge' },
+    { title: 'Scope' },
+    { title: 'Report' },
+  ],
+};
+
+// ───────────────────────── SCHEMAS ─────────────────────────
+const WORKLIST = {
+  type: 'object',
+  required: ['files'],
+  properties: {
+    files: { type: 'array', items: { type: 'string' }, description: 'Every source/config/schema file path in the repo' },
+    excluded: { type: 'array', items: { type: 'string' }, description: 'Globs excluded (vendored/build dirs) and why' },
+    total: { type: 'number' },
+  },
+};
+
+const FINDINGS = {
+  type: 'object',
+  required: ['file', 'readInFull', 'findings'],
+  properties: {
+    file: { type: 'string' },
+    readInFull: { type: 'boolean', description: 'true only if the entire file was read, no skimming' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['claim', 'lineStart', 'lineEnd', 'type', 'category', 'evidence_type', 'confidence'],
+        properties: {
+          claim: { type: 'string' },
+          lineStart: { type: 'number' },
+          lineEnd: { type: 'number' },
+          type: { type: 'string', enum: ['feature', 'data', 'rule', 'flow', 'service', 'debt', 'security', 'persona', 'integration'] },
+          category: { type: 'string', enum: ['fact', 'inference', 'recommendation'] },
+          evidence_type: { type: 'string', enum: ['code', 'comment-only'] },
+          confidence: { type: 'number' },
+          note: { type: 'string' },
+        },
+      },
+    },
+  },
+};
+
+const BATCH_FINDINGS = {
+  type: 'object',
+  required: ['files'],
+  properties: { files: { type: 'array', items: FINDINGS } },
+};
+
+const RECONCILED = {
+  type: 'object',
+  required: ['file', 'confirmed', 'conflicts', 'onlyOne'],
+  properties: {
+    file: { type: 'string' },
+    confirmed: { type: 'array', items: { type: 'object' }, description: 'findings both analysts agree on' },
+    conflicts: { type: 'array', items: { type: 'object' }, description: 'disagreements, resolved by re-reading the cited lines' },
+    onlyOne: { type: 'array', items: { type: 'object' }, description: 'found by only A or only B — coverage gaps' },
+    agreement: { type: 'number', description: '0-1 share of findings both analysts independently agreed on' },
+  },
+};
+
+const CLUSTERS = {
+  type: 'object',
+  required: ['capabilities', 'duplications', 'ghosts'],
+  properties: {
+    capabilities: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['name', 'criticality'],
+        properties: {
+          name: { type: 'string' },
+          description: { type: 'string' },
+          supporting: { type: 'array', items: { type: 'string' }, description: 'cited services/data/workflows file:line' },
+          users: { type: 'array', items: { type: 'string' } },
+          businessValue: { type: 'string' },
+          criticality: { type: 'string', enum: ['Critical', 'High', 'Medium', 'Low'] },
+          whatBreaksIfRemoved: { type: 'string' },
+          confidence: { type: 'number' },
+        },
+      },
+    },
+    duplications: { type: 'array', items: { type: 'object' }, description: 'logic repeated across files, with duplicated_at lists' },
+    ghosts: { type: 'array', items: { type: 'object' }, description: 'comment-only references, demoted' },
+  },
+};
+
+const SCHEMA_MAP = {
+  type: 'object',
+  required: ['entities', 'orphanedSchemas', 'missingSchemas'],
+  properties: {
+    entities: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          entity: { type: 'string' },
+          fields: { type: 'array', items: { type: 'object' } },
+          source: { type: 'string', enum: ['explicit', 'reconstructed'] },
+          definedAt: { type: 'string' },
+        },
+      },
+    },
+    orphanedSchemas: { type: 'array', items: { type: 'string' } },
+    missingSchemas: { type: 'array', items: { type: 'string' } },
+  },
+};
+
+const PERSONAS = {
+  type: 'object',
+  required: ['personas'],
+  properties: {
+    personas: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['name', 'confidence', 'corroboration'],
+        properties: {
+          name: { type: 'string' },
+          confidence: { type: 'number' },
+          evidence: { type: 'array', items: { type: 'string' }, description: 'file:line citations' },
+          corroboration: { type: 'string', enum: ['code+claudemd', 'code-only', 'claudemd-only', 'readme-only'] },
+          goals: { type: 'string' },
+          responsibilities: { type: 'string' },
+          painPoints: { type: 'string' },
+        },
+      },
+    },
+  },
+};
+
+const SCOPED = {
+  type: 'object',
+  required: ['scoped'],
+  properties: {
+    scoped: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['capability', 'scope'],
+        properties: {
+          capability: { type: 'string' },
+          scope: { type: 'string', enum: ['in-scope', 'out-of-scope', 'boundary'] },
+          rationale: { type: 'string' },
+          boundaryContract: { type: 'string', description: 'for boundary items: the contract that must hold across migration' },
+        },
+      },
+    },
+  },
+};
+
+// ───────────────────────── RULES (inlined so agents obey even if skills are not auto-loaded) ─────────────────────────
+const EVIDENCE_RULES = `
+Follow the fde-evidence-rules skill. Core rules:
+- Cite file:line for every claim; no citation => drop the finding.
+- Tag each finding category: fact (observable at the line) | inference (reasoned) | recommendation.
+- Tag evidence_type: code | comment-only. A claim supported only by comments is a GHOST -> mark it, never assert as real.
+- confidence 0.0-1.0 (facts = 1.0; inferences scored by strength/corroboration; explain why).
+- Read the ENTIRE assigned file before emitting any finding. No skimming. No guessing about unread regions.`;
+
+const MODEL = 'sonnet'; // all subagents run on sonnet
+
+// Optional scope knobs for cheap TEST runs (full runs omit them and read the whole repo):
+//   args.pathPrefix — restrict discovery to a subtree (string), or pass a bare string as args.
+//   args.maxFiles   — hard cap on the work-list; any drop is logged + reported, never silent.
+const _a = args || {};
+const PATH_PREFIX = (typeof _a === 'object' && _a.pathPrefix) || (typeof _a === 'string' ? _a : '') || '';
+const MAX_FILES = (typeof _a === 'object' && _a.maxFiles) || 0;
+const THOROUGH = (typeof _a === 'object' && _a.thorough) === true; // opt-in: per-file blind A/B + adjudicator (~3x cost)
+const READ_BATCH = (typeof _a === 'object' && _a.readBatch) || 6;  // lean default: files read per analyst
+const chunkArr = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
+
+// ───────────────────────── WORKFLOW ─────────────────────────
+
+// Ph0 LOAD — read this repo's personas (CLAUDE.md) + optional config. Personas are per-repo, not baked.
+phase('Load');
+const cfg = await agent(
+  `Read the repository's CLAUDE.md (and ./fde.config.md if it exists). Extract the project's curated personas
+   (name + the file:line evidence each cites) and any domain glossary. If neither file exists, return empty personas.
+   Return only what the files state — do not invent personas.`,
+  { label: 'load-config', phase: 'Load', schema: PERSONAS, agentType: 'Explore', model: MODEL }
+);
+const knownPersonas = (cfg && cfg.personas) || [];
+log(`Loaded ${knownPersonas.length} curated persona(s) from CLAUDE.md.`);
+
+// Ph1 DISCOVER — filesystem walk (NOT import-graph) so no domain goes invisible.
+phase('Discover');
+const work = await agent(
+  `Enumerate EVERY source, config, schema, and infrastructure file in this repository via a filesystem walk
+   (e.g. \`git ls-files\`). Do NOT seed from entrypoints or imports — a disconnected domain must still appear.
+   Exclude only vendored/build/generated dirs (node_modules, dist, build, .git, target, __pycache__, .venv) and
+   record what you excluded.${PATH_PREFIX ? ` Restrict the list to files under "${PATH_PREFIX}".` : ''}
+   Return the full file list and the total count.`,
+  { label: 'discover-files', phase: 'Discover', schema: WORKLIST, agentType: 'Explore', model: MODEL }
+);
+// The discover agent already restricts to PATH_PREFIX (via its prompt) and reports the true total.
+// Do NOT re-filter here by string prefix — returned paths may use a different separator/format and
+// a brittle startsWith() would wrongly drop everything (observed in smoke-test run wf_6c50ebdc).
+let files = (work && work.files) || [];
+const discoveredTotal = (work && work.total) || files.length;
+let scopeNote = '';
+if (PATH_PREFIX) scopeNote += `Scoped to pathPrefix="${PATH_PREFIX}" (${files.length} of ${discoveredTotal} tracked). `;
+if (MAX_FILES && files.length > MAX_FILES) {
+  scopeNote += `TEST CAP maxFiles=${MAX_FILES}: using ${MAX_FILES} of ${files.length} — NOT full coverage. `;
+  files = files.slice(0, MAX_FILES);
+}
+if (scopeNote) log(scopeNote);
+log(`Discovered ${files.length} files (of ${discoveredTotal} tracked). Excluded: ${((work && work.excluded) || []).join(', ') || 'none'}.`);
+
+// Ph2+3 READ — DEFAULT (lean): one analyst per BATCH of files, single pass (cheap).
+// THOROUGH (args.thorough:true): per-file blind A/B + adjudicator (higher fidelity, ~3x cost).
+phase('Read');
+let readSet = [];
+let allConfirmed = [];
+let agreementScores = [];
+
+if (THOROUGH) {
+  const analystPrompt = (file, tag) => `
+You are independent analyst ${tag}. You have NOT seen any other analyst's work — do not assume one exists.
+Read the file ${file} IN FULL. Extract features, data models, business rules/constraints, flows, services,
+integrations, technical debt, security concerns, and persona signals (roles, routes, regulation refs, audit actors).
+${EVIDENCE_RULES}
+Set readInFull=true only if you read the whole file. Return findings for ${file} only.`;
+  const perFile = (
+    await pipeline(
+      files,
+      (file) =>
+        parallel([
+          () => agent(analystPrompt(file, 'A'), { label: `A:${file}`, phase: 'Read', schema: FINDINGS, model: MODEL }),
+          () => agent(analystPrompt(file, 'B'), { label: `B:${file}`, phase: 'Read', schema: FINDINGS, model: MODEL }),
+        ]).then(([a, b]) => ({ file, a, b })),
+      (pair) =>
+        agent(
+          `Adjudicate two independent blind analyses of ${pair.file}.
+           A: ${JSON.stringify(pair.a)}
+           B: ${JSON.stringify(pair.b)}
+           Both agree (same file:line + claim) => confirmed. Conflict => RE-READ the cited lines and resolve.
+           Only one reported => onlyOne (coverage gap, never silently drop). Compute agreement (0-1). ${EVIDENCE_RULES}`,
+          { label: `adj:${pair.file}`, phase: 'Reconcile', schema: RECONCILED, model: MODEL }
+        )
+    )
+  ).filter(Boolean);
+  readSet = perFile.map((r) => r.file);
+  allConfirmed = perFile.flatMap((r) => [...(r.confirmed || []), ...(r.onlyOne || [])]);
+  agreementScores = perFile.map((r) => r.agreement).filter((x) => typeof x === 'number');
+} else {
+  const fileBatches = chunkArr(files, READ_BATCH);
+  log(`Lean read: ${files.length} files in ${fileBatches.length} batch(es) of <=${READ_BATCH}, single-pass.`);
+  const results = (
+    await parallel(
+      fileBatches.map((fb, i) => () =>
+        agent(
+          `You are an FDE code analyst. Read EACH of these files IN FULL (no skimming) and extract what exists:
+           features, data models, business rules/constraints, flows, services, integrations, technical debt,
+           security concerns, and persona signals (roles, routes, regulation refs, audit actors).
+           ${EVIDENCE_RULES}
+           Return one entry per file (set readInFull per file). Files: ${fb.join(', ')}`,
+          { label: `read:${i + 1}/${fileBatches.length}`, phase: 'Read', schema: BATCH_FINDINGS, model: MODEL }
+        )
+      )
+    )
+  ).filter(Boolean);
+  for (const r of results) {
+    for (const fr of r.files || []) {
+      readSet.push(fr.file);
+      allConfirmed.push(...(fr.findings || []));
+    }
+  }
+}
+log(`Read ${readSet.length}/${files.length} files; ${allConfirmed.length} findings.`);
+
+// Ph4 MERGE — cross-file barrier. Findings are BATCHED so nothing is silently dropped (invariant #1):
+// cluster each batch, then merge the partial cluster-sets in a final pass.
+phase('Merge');
+const CHUNK = 120; // findings per clustering batch
+const batches = chunkArr(allConfirmed, CHUNK);
+log(`Merging ${allConfirmed.length} findings in ${batches.length} batch(es) — no truncation.`);
+
+const partialClusters = (
+  await parallel(
+    batches.map((b, i) => () =>
+      agent(
+        `Use the capability-clustering skill. Cluster THIS BATCH (${i + 1}/${batches.length}) of cited findings into
+         business capabilities; detect duplication (duplicated_at); demote comment-only ghosts; score criticality.
+         Findings: ${JSON.stringify(b)}`,
+        { label: `cluster:${i + 1}/${batches.length}`, phase: 'Merge', schema: CLUSTERS, model: MODEL }
+      )
+    )
+  )
+).filter(Boolean);
+
+const clusters =
+  batches.length <= 1
+    ? partialClusters[0] || { capabilities: [], duplications: [], ghosts: [] }
+    : await agent(
+        `Use the capability-clustering skill. MERGE these per-batch cluster sets into ONE. Combine capabilities with
+         the same name (union their supporting evidence + duplicated_at), keep the highest criticality, and merge the
+         ghosts and duplications lists. Drop nothing.
+         Cluster sets: ${JSON.stringify(partialClusters)}`,
+        { label: 'cluster-merge', phase: 'Merge', schema: CLUSTERS, model: MODEL }
+      );
+
+// Schema map + personas run on the relevant finding subsets (smaller), in parallel.
+const dataFindings = allConfirmed.filter((f) => f && (f.type === 'data' || f.type === 'rule'));
+const personaFindings = allConfirmed.filter((f) => f && f.type === 'persona');
+const [schemaMap, personas] = await parallel([
+  () =>
+    agent(
+      `Use the schema-extraction skill. Build the schema map from these data/rule findings and the file list.
+       Classify schema-defining vs data-bearing; if no schema files exist, reconstruct entity shape from code
+       (models/interfaces/forms), cite file:line, mark source=reconstructed. Flag orphaned + missing schemas.
+       Findings: ${JSON.stringify(dataFindings)}
+       Files: ${JSON.stringify(files)}`,
+      { label: 'schema-map', phase: 'Merge', schema: SCHEMA_MAP, model: MODEL }
+    ),
+  () =>
+    agent(
+      `Use the persona-synthesis skill. From these persona findings, discover the stakeholders of this system.
+       Corroborate each against the curated CLAUDE.md personas below: code+CLAUDE.md => confirmed; CLAUDE.md/README only
+       => ghost; code only => propose as new. Score confidence with file:line evidence.
+       Curated personas: ${JSON.stringify(knownPersonas)}
+       Persona findings: ${JSON.stringify(personaFindings)}`,
+      { label: 'personas', phase: 'Merge', schema: PERSONAS, model: MODEL }
+    ),
+]);
+
+// Ph5 SCOPE — tag each capability for the Angular -> React/Next.js modernization.
+phase('Scope');
+const scoped = await agent(
+  `For an Angular -> React/Next.js FRONTEND modernization, tag each capability:
+   - in-scope (frontend that migrates), out-of-scope (backend/infra — mapped, not touched),
+   - boundary (talks to in-scope; its contract MUST hold across the migration — name the contract).
+   Capabilities: ${JSON.stringify((clusters && clusters.capabilities) || []).slice(0, 200000)}`,
+  { label: 'scope', phase: 'Scope', schema: SCOPED, model: MODEL }
+);
+
+// Ph6 COMPLETENESS — deterministic gate: which work-list files were never read?
+const readLookup = new Set(readSet);
+const missed = files.filter((f) => !readLookup.has(f));
+const coveragePct = files.length ? Math.round(((files.length - missed.length) / files.length) * 100) : 100;
+if (missed.length) log(`COVERAGE GAP: ${missed.length} file(s) not read — ${coveragePct}%. They will be listed in the report.`);
+else log(`Total coverage: ${files.length}/${files.length} files read (100%).`);
+
+// Ph7 REPORT — synthesize the analysis report. Returned to the session; NOT written into the repo.
+phase('Report');
+const avgAgreement = agreementScores.length
+  ? (agreementScores.reduce((a, b) => a + b, 0) / agreementScores.length).toFixed(2)
+  : (THOROUGH ? 'n/a' : 'single-pass lean mode (run with thorough:true for dual-analyst agreement)');
+
+const report = await agent(
+  `Write the FDE Analysis Report as professional Markdown. Follow the fde-evidence-rules skill:
+   separate FACTS / INFERENCES / RECOMMENDATIONS and show confidence scores throughout.
+
+   Required sections:
+   1. Executive Summary — what the system does, why it exists, who uses it.
+   2. Capability Map — clusters with criticality + what-breaks-if-removed.
+   3. Personas — discovered stakeholders, evidence, confidence, corroboration vs CLAUDE.md.
+   4. Schema Map — markdown table (entity|field|type|constraint|file:line|source) + orphaned/missing lists.
+   5. Duplication & Ghosts — repeated logic and comment-only references.
+   6. Modernization Scope Map — in-scope / out-of-scope / boundary (with boundary contracts).
+   7. Reliability — dual-analyst average agreement: ${avgAgreement}. Coverage: ${coveragePct}% (${files.length - missed.length}/${files.length}).
+      Scope note (state prominently if non-empty — this run did NOT cover the whole repo): ${scopeNote || 'full repo'}
+      List every missed file with a reason (NO silent truncation): ${JSON.stringify(missed).slice(0, 20000)}
+   8. Modernization Options — PRESENT React vs Next.js profiles for the in-scope frontend. DO NOT pick one
+      (the workflow cannot wait for input mid-run; selection happens by invoking /fde-plan <target> afterward).
+
+   Inputs:
+   capabilities=${JSON.stringify((clusters && clusters.capabilities) || []).slice(0, 150000)}
+   duplications=${JSON.stringify((clusters && clusters.duplications) || []).slice(0, 40000)}
+   ghosts=${JSON.stringify((clusters && clusters.ghosts) || []).slice(0, 40000)}
+   personas=${JSON.stringify((personas && personas.personas) || []).slice(0, 60000)}
+   schema=${JSON.stringify(schemaMap || {}).slice(0, 80000)}
+   scope=${JSON.stringify((scoped && scoped.scoped) || []).slice(0, 80000)}`,
+  { label: 'report', phase: 'Report', model: MODEL }
+);
+
+log('Analysis complete. Report returned to the session — review, then run /fde-plan <react|nextjs>.');
+return report;
