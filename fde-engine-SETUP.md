@@ -6,13 +6,13 @@ modernization. **You don't build anything — copy files and run.** All subagent
 ## 1. Install (copy into your repo)
 ```
 .claude/workflows/   fde-personas.js  fde-analyze.js  fde-plan.js
-.claude/skills/       fde-analysis/   persona-synthesis/
+.claude/skills/       fde-analysis/
 ```
 Claude Code auto-discovers them. No CLAUDE.md / personas file is shipped — you generate your own (step 2).
 
 ## 2. Run order
 ```
-/fde-personas        → discovers YOUR stakeholders from YOUR code → writes .claude/personas.md   (run once)
+/fde-personas        → discovers YOUR stakeholders from YOUR code → writes personas/*.md cards   (run once)
 /fde-analyze         → cited analysis report of your repo
    [read it, pick a target]
 /fde-plan react      → spec-level migration plan   (or: /fde-plan nextjs)
@@ -20,12 +20,13 @@ Claude Code auto-discovers them. No CLAUDE.md / personas file is shipped — you
 
 ## 3. What each does
 - **/fde-personas** — infers personas (roles, routes, regulation refs, audit actors, README), evidence-cited
-  with confidence, and writes/merges them into `.claude/personas.md`. Preserves anything you've hand-curated.
+  with confidence, and writes ONE canonical card per persona to `personas/<slug>.md` (+ a `personas/README.md`
+  index). Roles, not people. Preserves anything you've hand-curated.
 - **/fde-analyze** — **MAP pass** (local CLI: `repomix --compress` → `ctags` → `ripgrep` fallback) maps the whole
   repo cheaply (100% coverage + duplication/ghost/missing-schema) → deep-reads ONLY in-scope + boundary files →
   cluster → schema map → personas → cited report. **Reads only; writes nothing.** Ends by presenting React vs Next.js.
 - **/fde-plan <target>** — research Angular→target mapping → user stories → persona review (refute-mode, using
-  `.claude/personas.md`) → spec-level migration plan + roadmap/risk/rollback/test → critic gate → plan.
+  the `personas/*.md` reviewer lenses) → spec-level migration plan + roadmap/risk/rollback/test → critic gate → plan.
   Report-only unless you pass `sandboxDir` (then it writes prototype code there — never touches your app).
 
 ## 4. Flags & cost (IMPORTANT on a Pro token budget)

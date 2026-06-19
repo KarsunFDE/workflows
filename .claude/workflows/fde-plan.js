@@ -1,6 +1,6 @@
 export const meta = {
   name: 'fde-plan',
-  description: 'Plan an Angular->target (react|nextjs) migration: research equivalents, user stories, persona review (refute-mode, using .claude/personas.md), spec-level plan + roadmap/risk/rollback/test, critic gate. Report-only unless {sandboxDir} given; never edits the app. Run after /fde-analyze. Args {target,analysisReport?,sandboxDir?,web?}.',
+  description: 'Plan an Angular->target (react|nextjs) migration: research equivalents, user stories, persona review (refute-mode, using the personas/*.md reviewer lenses), spec-level plan + roadmap/risk/rollback/test, critic gate. Report-only unless {sandboxDir} given; never edits the app. Run after /fde-analyze. Args {target,analysisReport?,sandboxDir?,web?}.',
   whenToUse: 'Run AFTER /fde-analyze, once a human has read the analysis and picked a target. Invoke as: /fde-plan with args {target:"react"|"nextjs", analysisReport?:string, sandboxDir?:string}. analysisReport (paste the /fde-analyze output) grounds the plan; sandboxDir enables prototype emission.',
   phases: [
     { title: 'Load' },
@@ -101,11 +101,15 @@ const SPEC = {
   },
 };
 
-// Ph0 LOAD — reviewer personas from CLAUDE.md + the analysis to plan against.
+// Ph0 LOAD — reviewer lenses from the persona cards + the analysis to plan against.
 phase('Load');
 const ctx = await agent(
-  `Read .claude/personas.md (fall back to CLAUDE.md) and extract each persona's Reviewer Prompt verbatim
-   (these are the stakeholder review lenses). ${analysisReport ? 'An analysis report is provided separately; do not re-scan.' :
+  `Read this repo's persona cards from the top-level \`personas/\` directory — every \`personas/*.md\` EXCEPT
+   \`personas/README.md\`. If \`personas/\` does not exist, fall back to \`.claude/personas.md\`, then \`CLAUDE.md\`.
+   For each persona, produce its stakeholder REVIEW LENS: copy the card's "## Reviewer lens" section VERBATIM if
+   present; if a card has no Reviewer lens, DERIVE one from its "What they cannot do" / "Constraints / authority
+   limits" / "Impact on the system" sections (refute-mode: what the migration must not regress).
+   ${analysisReport ? 'An analysis report is provided separately; do not re-scan.' :
    'No analysis report was passed — do a FOCUSED read of the in-scope Angular frontend (components, routes, ' +
    'forms, services it calls) to recover the capabilities and boundary contracts the plan must preserve. ' +
    'Cite file:line.'} Return the reviewer prompts and a concise capability/boundary summary.`,

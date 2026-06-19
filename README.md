@@ -9,7 +9,7 @@ All subagents run on `sonnet`.
 ```
 .claude/
   workflows/   fde-personas.js  fde-analyze.js  fde-plan.js   (fde-analyze.v2.bak = rollback)
-  skills/      fde-analysis/  persona-synthesis/
+  skills/      fde-analysis/
 
 combined_workflow.md          # master design doc (authoritative)
 fde-engine-SETUP.md           # setup guide for a new group
@@ -28,16 +28,17 @@ not from this one. This repo is the shared source of truth + central config stor
 
 ```
 1. Copy .claude/workflows + .claude/skills into your project repo's .claude/
-2. /fde-personas    → generates YOUR .claude/personas.md from YOUR code (run once)
+2. /fde-personas    → generates YOUR personas/*.md cards from YOUR code (run once)
 3. /fde-analyze     → cited analysis report (start scoped: args {pathPrefix, maxFiles})
 4. /fde-plan react  → migration plan (or nextjs / other target)
 ```
 
-After generating, copy your `personas.md` (+ any `fde.config.*` and sample outputs) into this repo's matching
+After generating, copy your `personas/` cards (+ any `fde.config.*` and sample outputs) into this repo's matching
 project folder so the group has a versioned, central record.
 
-> The Ph0 loader reads `.claude/personas.md` at the **project root** where the workflow runs — not this repo's
-> project subfolders. Those subfolders are backup/handoff storage only.
+> The Ph0 loader reads `personas/*.md` at the **project root** where the workflow runs — not this repo's
+> project subfolders. Those subfolders are backup/handoff storage only. (Legacy `.claude/personas.md` / `CLAUDE.md`
+> are still read as a fallback.)
 
 ## Cost note (Pro budget)
 
