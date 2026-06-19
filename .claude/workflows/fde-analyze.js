@@ -162,10 +162,10 @@ const PERSONAS = {
         properties: {
           name: { type: 'string' },
           confidence: { type: 'number' },
-          evidence: { type: 'array', items: { type: 'string' } },
-          corroboration: { type: 'string', enum: ['code+claudemd', 'code-only', 'claudemd-only', 'readme-only'] },
-          goals: { type: 'string' },
-          responsibilities: { type: 'string' },
+          evidence: { type: 'array', items: { type: 'string' }, description: 'code file:line citations' },
+          corroboration: { type: 'string', enum: ['code+card', 'code-only', 'card-only', 'readme-only'] },
+          klass: { type: 'string', description: 'the card Class line, if known' },
+          reviewerLens: { type: 'string', description: 'the card Reviewer lens, if present' },
           painPoints: { type: 'string' },
         },
       },
@@ -181,16 +181,21 @@ confidence 0.0-1.0 (facts=1.0); read the ENTIRE assigned file before any finding
 
 // ───────────────────────── WORKFLOW ─────────────────────────
 
-// Ph0 LOAD — this repo's curated personas (per-repo, not baked).
+// Ph0 LOAD — this repo's curated persona cards (per-repo, not baked). Written by /fde-personas.
 phase('Load');
 const cfg = await agent(
-  `Read .claude/personas.md (the per-repo persona file; fall back to CLAUDE.md if it does not exist).
-   Return its curated personas (name + the file:line evidence each cites) and any domain glossary.
-   If neither file exists, return empty personas. Return only what the files state — invent nothing.`,
+  `Read this repo's persona cards from the top-level \`personas/\` directory — every \`personas/*.md\` EXCEPT
+   \`personas/README.md\` (that one is just the index). If \`personas/\` does not exist, fall back to
+   \`.claude/personas.md\`, then \`CLAUDE.md\`.
+   Each canonical card (written by /fde-personas) has: a "# Persona: <name>" title, a "Class:" line, an
+   "## Evidence (file:line)" section (CODE citations), and a "## Reviewer lens" section. For each persona return:
+   name, klass (the Class line), the code file:line evidence it cites, its reviewerLens text, and a confidence.
+   Also return any domain glossary. If none exist, return empty personas. Return only what the files state —
+   invent nothing.`,
   { label: 'load-config', phase: 'Load', schema: PERSONAS, agentType: 'Explore', model: MODEL }
 );
 const knownPersonas = (cfg && cfg.personas) || [];
-log(`Loaded ${knownPersonas.length} curated persona(s) from .claude/personas.md.`);
+log(`Loaded ${knownPersonas.length} curated persona card(s) from personas/*.md.`);
 
 // Ph1 MAP — structural map of the WHOLE repo via a local CLI (near-zero AI tokens to generate; signatures only).
 // 3-tier fallback so NO install is required (ripgrep is always available).
@@ -339,9 +344,12 @@ const [schemaMap, personas] = await parallel([
     ),
   () =>
     agent(
-      `Use persona-synthesis. From these persona findings, discover stakeholders; corroborate vs the curated
-       CLAUDE.md personas (code+CLAUDE.md => confirmed; CLAUDE.md/README only => ghost; code only => propose).
-       Curated: ${JSON.stringify(knownPersonas)}
+      `From these persona findings discovered in the deep read, consolidate the system's stakeholders and
+       corroborate each against the repo's curated persona cards (personas/*.md). Corroboration rule:
+       code finding + matching card => confirmed (corroboration=code+card); card or README only, no code
+       => ghost (card-only/readme-only); code only, no card => propose a new persona (with file:line).
+       Carry each persona's reviewerLens from its card when one exists. Cite code file:line for evidence.
+       Curated cards: ${JSON.stringify(knownPersonas)}
        Persona findings: ${JSON.stringify(personaFindings)}`,
       { label: 'personas', phase: 'Merge', schema: PERSONAS, model: MODEL }
     ),
@@ -359,7 +367,7 @@ const report = await agent(
    FACTS / INFERENCES / RECOMMENDATIONS, show confidence scores. Sections:
    1. Executive Summary — what the system does, why, who uses it.
    2. Capability Map — clusters + criticality + what-breaks-if-removed.
-   3. Personas — discovered + evidence + confidence + corroboration vs CLAUDE.md.
+   3. Personas — discovered + evidence + confidence + corroboration vs the curated persona cards (personas/*.md).
    4. Schema Map — table (entity|field|type|constraint|file:line|source) + orphaned/missing.
    5. Duplication & Ghosts — from the structural map + deep read.
    6. Modernization Scope Map — in-scope / out-of-scope / boundary (+ boundary contracts).

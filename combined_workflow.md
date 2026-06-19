@@ -21,9 +21,8 @@ contract-payment-flow/
 │   │   ├── fde-analyze.js                      # analysis arm      (BUILT) -> /fde-analyze
 │   │   └── fde-plan.js                         # planning arm      (BUILT) -> /fde-plan <target>
 │   ├── skills/
-│   │   ├── fde-analysis/SKILL.md               # evidence + clustering + schema + coverage (merged)
-│   │   └── persona-synthesis/SKILL.md          # discovered evidence -> reviewer prompt
-│   └── personas.md                             # THIS repo's personas (on-demand; written by /fde-personas)
+│   │   └── fde-analysis/SKILL.md               # evidence + clustering + schema + coverage
+├── personas/                                   # THIS repo's persona cards (one .md each + README index; written by /fde-personas)
 ├── CLAUDE.md                                   # lean pointer only (~15 lines) — NOT the personas
 ├── combined_workflow.md                        # THIS design doc (master)
 └── workflow.md                                 # prior snapshot (history)
@@ -32,30 +31,30 @@ contract-payment-flow/
 Rules of placement (per Claude Code best practices):
 - **Workflows** must be in `.claude/workflows/` to be invokable as `/name`.
 - **Skills** must be in `.claude/skills/<name>/SKILL.md` to auto-register. Only frontmatter (~100 tok) is always-loaded; bodies load on trigger.
-- **Personas live in `.claude/personas.md`** (on-demand), NOT in CLAUDE.md. CLAUDE.md loads every session, so it stays a lean pointer — bloating it makes Claude ignore real instructions ([best practices](https://code.claude.com/docs/en/best-practices)).
-- To share across groups: package `.claude/workflows` + `.claude/skills` as the engine; each repo generates its own `.claude/personas.md` via `/fde-personas`. See §12.
+- **Personas live in `personas/*.md` cards** (one file per persona + a `personas/README.md` index; written by `/fde-personas`), NOT in CLAUDE.md. CLAUDE.md loads every session, so it stays a lean pointer — bloating it makes Claude ignore real instructions ([best practices](https://code.claude.com/docs/en/best-practices)).
+- To share across groups: package `.claude/workflows` + `.claude/skills` as the engine; each repo generates its own `personas/*.md` cards via `/fde-personas`. See §12.
 
 ---
 
 ## 0.1 The workflows — what exists, what each does, when to call
 
-Three workflows + two skills make up the engine. All BUILT.
+Three workflows + one skill make up the engine. All BUILT.
 
 | Command | What it does | When to call | Writes? |
 |---|---|---|---|
-| `/fde-personas` | Discovers stakeholder personas from the repo (roles, routes, regulation refs, audit actors, README), synthesizes an evidence-grounded record + reviewer prompt for each, and **writes/merges them into CLAUDE.md** (preserves anything already curated). | **First**, once per repo (or when stakeholders change). A new group runs this so they never hand-author personas. | CLAUDE.md only |
+| `/fde-personas` | Discovers stakeholder personas from the repo (roles, routes, regulation refs, audit actors, README), synthesizes an evidence-grounded card + reviewer lens for each, and **writes one canonical card per persona to `personas/<slug>.md`** (+ a `personas/README.md` index; preserves anything already curated). | **First**, once per repo (or when stakeholders change). A new group runs this so they never hand-author personas. | `personas/*.md` |
 | `/fde-analyze` | **v3 default (token-frugal):** structural MAP pass (local CLI `repomix --compress`/`ctags`/`ripgrep` — near-zero AI tokens) gives 100% whole-repo coverage + surfaces dup/ghost/missing-schema cheaply → tier files → **deep-read only in-scope+boundary** → cluster → schema map → personas → **report**. Flags: `{full:true}` deep-reads every file (old v2), `{thorough:true}` blind dual-analyst, `{pathPrefix,maxFiles}` scope a test. Ends presenting options (no auto-pick). | **Second**, before any modernization. Run many times. | nothing (report to session) |
 | `/fde-plan <target>` | Takes a chosen target (`react`\|`nextjs`) + the analysis. Research Angular→target mapping → user stories → **persona review (refute-mode)** → spec-level migration plan + roadmap/risk/rollback/test → critic gate → **ModernizationPlan**. Optional prototype into a sandbox dir. | **Third**, after a human reads the analysis and picks a target. `args: {target, analysisReport?, sandboxDir?}`. | report only (prototype only if `sandboxDir` given) |
 
 Run order:
 ```
-/fde-personas   → bootstrap CLAUDE.md from this repo's code   (once)
+/fde-personas   → bootstrap personas/*.md cards from this repo's code   (once)
 /fde-analyze    → analysis report, presents target options     (repeatable)
    [human picks react or nextjs]
 /fde-plan react → spec-level migration plan                    (after selection)
 ```
 
-Skills (2): `fde-analysis` (evidence discipline + capability clustering + schema extraction + coverage — merged) and `persona-synthesis` (discovered evidence → reviewer prompt).
+Skill (1): `fde-analysis` (evidence discipline + capability clustering + schema extraction + coverage). Personas are generated directly by `/fde-personas` as canonical `personas/*.md` cards (code-cited, each with a Reviewer lens) — the former `persona-synthesis` skill is retired.
 
 ---
 
@@ -366,15 +365,15 @@ always check the reliability/coverage section, not just that a report came out.
 **Ship the ENGINE only** — each repo bootstraps its own personas:
 ```
 .claude/workflows/   (fde-personas.js, fde-analyze.js, fde-plan.js)
-.claude/skills/       (fde-analysis, persona-synthesis)
+.claude/skills/       (fde-analysis)
 ```
-**Do NOT ship:** `.claude/personas.md`, `CLAUDE.md`, `*.bak` (your repo's personas). `combined_workflow.md` +
+**Do NOT ship:** `personas/`, `CLAUDE.md`, `*.bak` (your repo's personas). `combined_workflow.md` +
 `fde-engine-SETUP.md` + `fde-engine-WHATS-NEW.md` ARE included in the zip as reference.
 
 **Their setup (no building — copy + run):**
 ```
 1. drop .claude/workflows + .claude/skills into their repo
-2. /fde-personas    → generates THEIR .claude/personas.md from THEIR code
+2. /fde-personas    → generates THEIR personas/*.md cards from THEIR code
 3. /fde-analyze     → analysis report (start scoped: args {pathPrefix, maxFiles})
 4. /fde-plan react  → migration plan
 ```
@@ -417,12 +416,12 @@ Concrete changes:
 > Point a new window at THIS file (`combined_workflow.md`) first. Snapshot as of 2026-06-19.
 
 **Built + in `.claude/` (all sonnet, syntax-clean):**
-- `workflows/fde-personas.js` — discover personas → writes `.claude/personas.md`. ✅ smoke-tested.
+- `workflows/fde-personas.js` — discover personas → writes canonical `personas/*.md` cards + `personas/README.md` index. ✅ smoke-tested (earlier version wrote a single `.claude/personas.md`).
 - `workflows/fde-analyze.js` — **v3 default**: map (repomix→ctags→ripgrep) + tiered deep-read. ✅ smoke-tested
   (repomix tier, 100% coverage, 22% deep-read). Flags `{full,thorough,pathPrefix,maxFiles}`. v2 saved as
   `fde-analyze.v2.bak` + reachable via `{full:true}`.
 - `workflows/fde-plan.js` — Angular→`{target}` plan. ⚠️ not full-run-tested (beta).
-- `skills/fde-analysis` + `skills/persona-synthesis` (merged from 5 → 2).
+- `skills/fde-analysis` (skills merged 5 → 1; `persona-synthesis` retired — personas now generated directly by `/fde-personas` as `personas/*.md` cards).
 - Both report agents now **write a local `.md`** (`fde-analysis-report.md`, `fde-modernization-plan.md`) before returning.
 
 **Token optimizations done this session:** sonnet everywhere · lean batch read default (was per-file dual) ·
