@@ -13,9 +13,7 @@ All subagents run on `sonnet`.
 
 combined_workflow.md          # master design doc (authoritative)
 fde-engine-SETUP.md           # setup guide for a new group
-fde-engine-WHATS-NEW.md       # changelog / highlights
 how-this-workflow-was-built.md
-workflow.md                   # prior design snapshot (history)
 fde-analyze-sample-report.html # sample run output (proof it works)
 
 contract-payment-flow/        # per-project config storage (personas, fde.config, sample outputs)
