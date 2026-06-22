@@ -123,13 +123,14 @@ Grounded in Claude Code workflow docs + Anthropic multi-agent/context-engineerin
   - `foia-response-pipeline/` — **NOT canonical / never re-run** (git: single commit `c5afa6a`, no regen). Has
     `## Evidence` + `## Reviewer lens` but is **missing `## What they cannot do` (0/15) and `## Pain points`
     (0/15)** — an intermediate/older shape. Loader gets a verbatim lens but the can't-do / pain-point signal is absent.
-  - `grants-portal-modern/` — **NOT canonical / never re-run** (git: `d22b8da`). Oldest shape (`## Role`/
-    `## HITL Gate`/`## Source`, **0/12 `## Reviewer lens`**, no `## Evidence`). Loader falls back to DERIVED
-    lenses + zero code-corroboration.
-  Neither foia nor grants re-run because `/fde-personas` is token-expensive and the incremental-rerun optimization
-  (branch `persona-optimization`) is syntax-clean but **not runtime-tested** — validate that first.
-  FIX (after the optimization is validated): re-run `/fde-personas` in **both** foia and grants to reach canonical.
-  Separately: all 39 cards cite `file:line`, not the newer `file:symbol` anchor (re-anchors on next re-run).
+  - `grants-portal-modern/` — **NOW CANONICAL, and the best of the three** (PR #10 `abd9c17`). 11/11 cards have
+    all 8 sections AND already use the newest `## Evidence (file:symbol)` anchor. Grants ran the incremental
+    `/fde-personas` (persona-optimization, merged PR #8/#9) — so that optimization is now **runtime-proven**, no
+    longer just syntax-clean. This also resolves the earlier "not-runtime-tested" caveat.
+  Net status: **Grants canonical+file:symbol (gold) · Contracts canonical but file:line (re-anchor only) · FOIA
+  is the only remaining gap** (missing `## What they cannot do` + `## Pain points`, file:line).
+  FIX: re-run `/fde-personas` on the **FOIA** clone (full canonical) and on **Contracts** (re-anchor to
+  file:symbol). Grants needs nothing.
 - **C2 Med** — bare-string args silently drop flags (analyze.js:17; plan.js:19–26). Fix = log on string-arg.
 - **C3 Med** — coverage numbers pre-computed (good) but no post-hoc assert vs the written report.
 - **C4 Low** — `.slice()` prompt caps truncate SILENTLY (unlike MERGE which was fixed). Fix = log on actual
