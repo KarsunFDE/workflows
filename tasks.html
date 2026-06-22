@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FDE Workflow — Sprint Tasks (Galent 7-step)</title>
+<style>
+  :root{
+    --bg:#0f1219; --panel:#171b24; --panel2:#1d2230; --ink:#e8eaf0; --muted:#9aa3b2;
+    --line:#2a3140; --accent:#6ea8fe; --done:#3a4252;
+    --g1:#2dd4a7; --g1d:#0f3b30;   /* Grants  */
+    --g2:#f5a524; --g2d:#3d2c08;   /* Contracts */
+    --g3:#a78bfa; --g3d:#2c2245;   /* FOIA */
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto;padding:40px 24px 80px}
+  header h1{font-size:30px;line-height:1.2;margin:0 0 6px;letter-spacing:-.02em}
+  header .sub{color:var(--muted);font-size:15px;margin:0 0 22px}
+  .lead{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:0 0 14px}
+  .lead p{margin:0 0 10px}.lead p:last-child{margin:0}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0 0;font-size:13px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .legend i{width:13px;height:13px;border-radius:3px;display:inline-block}
+  h2.section{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+    margin:38px 0 14px;border-top:1px solid var(--line);padding-top:22px}
+  .diagram{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;overflow-x:auto}
+  .diagram svg{display:block;min-width:880px;width:100%;height:auto}
+  .diagram .cap{color:var(--muted);font-size:13px;text-align:center;padding:6px 8px 8px}
+  .diagram .cap code{color:var(--ink)}
+  .group{border:1px solid var(--line);border-radius:14px;margin:16px 0;overflow:hidden;background:var(--panel)}
+  .group .head{padding:18px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-left:6px solid}
+  .group.g1 .head{border-color:var(--g1);background:linear-gradient(90deg,var(--g1d),transparent 70%)}
+  .group.g2 .head{border-color:var(--g2);background:linear-gradient(90deg,var(--g2d),transparent 70%)}
+  .group.g3 .head{border-color:var(--g3);background:linear-gradient(90deg,var(--g3d),transparent 70%)}
+  .group .head .tag{font-weight:700;font-size:18px}
+  .group.g1 .tag{color:var(--g1)} .group.g2 .tag{color:var(--g2)} .group.g3 .tag{color:var(--g3)}
+  .group .head .repo{font-size:15px;color:var(--ink)}
+  .group .head .steps{font-size:12px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+  .group .head .owns{margin-left:auto;font-size:13px;color:var(--muted)}
+  .group .head .owns code{background:#0c0f16;border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--ink)}
+  .group .body{padding:6px 22px 22px}
+  .does{font-size:14px;color:var(--muted);margin:14px 0 2px}
+  .does b{color:var(--ink)}
+  .ctx{color:#cfd5e1;font-size:15px;margin:12px 0 4px}
+  .tasks{list-style:none;padding:0;margin:14px 0 0}
+  .tasks li{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+  .tasks li .id{flex:0 0 auto;font-weight:700;font-size:12px;padding:2px 8px;border-radius:6px;height:fit-content;background:#0c0f16;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .tasks li .t b{display:block;margin-bottom:2px}
+  .tasks li .t > span{color:var(--muted);font-size:14px}
+  .prompt{margin-top:10px;background:#0c0f16;border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:8px;padding:9px 12px;font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-size:12.5px;line-height:1.55;color:#c8d0de;white-space:pre-wrap;word-break:break-word}
+  .prompt .lbl{display:block;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:10.5px;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;font-weight:700}
+  .meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .meta .m{font-size:13px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 11px}
+  .meta .m b{color:var(--muted);font-weight:600}
+  .meta .m code{color:var(--ink)}
+  .callout{border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:16px 0;background:var(--panel)}
+  .callout.dep{border-left:6px solid var(--accent)}
+  .callout h3{margin:0 0 8px;font-size:16px}
+  .callout p{margin:0 0 8px;color:#cfd5e1}.callout p:last-child{margin:0}
+  .rules{columns:2;column-gap:26px}
+  @media(max-width:680px){.rules{columns:1}}
+  .rules li{margin:0 0 9px;break-inside:avoid;color:#cfd5e1}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.9em}
+  footer{color:var(--muted);font-size:13px;margin-top:36px;border-top:1px solid var(--line);padding-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Finishing the Galent 7-Step Workflow</h1>
+  <p class="sub">Three groups · minimal overlap · target: cover every unfinished step by tomorrow</p>
+</header>
+
+<div class="lead">
+  <p>Our workflow copies <strong>Galent's 7-step app-modernization process</strong>. Steps 1 and 2 are done — we
+  can already ingest a project and analyze it. The remaining steps (3 through 7) are either <strong>partly
+  built</strong> or <strong>not built at all</strong>. This sprint finishes them.</p>
+  <p>Each gap is assigned so that <strong>each group works in a different file</strong> — no two people edit the
+  same file, so there are no merge conflicts on GitHub. The work extends the existing command chain:
+  <code>/fde-personas → /fde-analyze → /fde-plan</code>, plus a brand-new <code>/fde-implement</code> command for
+  the build steps.</p>
+  <div class="legend">
+    <span><i style="background:var(--done)"></i> Steps 1–2: already done</span>
+    <span><i style="background:var(--g3)"></i> Group 3 · FOIA</span>
+    <span><i style="background:var(--g2)"></i> Group 2 · Contracts</span>
+    <span><i style="background:var(--g1)"></i> Group 1 · Grants</span>
+  </div>
+</div>
+
+<h2 class="section">The 7 steps — and who finishes each</h2>
+<div class="diagram" role="img" aria-label="Galent's 7 steps. Steps 1 (ingest) and 2 (analyze) are done. Step 3 (agree target state, no framework assumed) is partial, split between Group 3 and Group 2. Step 4 (specs with code snippets) is partial, Group 1. Step 5 (epics, stories, business-analyst review) is partial, Group 2. Step 6 (single-engineer subtasks) is not built, Group 1. Step 7 (build agents that plan and act) is not built, Group 1.">
+<svg viewBox="0 0 940 200" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <!-- 7 step boxes -->
+  <!-- helper layout: x = 18 + i*132, w = 116, y = 30, h = 140 -->
+
+  <!-- Step 1 done -->
+  <rect x="18" y="30" width="116" height="140" rx="11" fill="#171b24" stroke="#3a4252" stroke-width="1.5"/>
+  <text x="34" y="58" fill="#5b6678" font-size="22" font-weight="700">1</text>
+  <text x="34" y="92" fill="#c2c8d4" font-size="13" font-weight="700">Ingest</text>
+  <text x="34" y="110" fill="#c2c8d4" font-size="13" font-weight="700">sources</text>
+  <text x="34" y="150" fill="#5b6678" font-size="12">✓ done</text>
+
+  <!-- Step 2 done -->
+  <rect x="150" y="30" width="116" height="140" rx="11" fill="#171b24" stroke="#3a4252" stroke-width="1.5"/>
+  <text x="166" y="58" fill="#5b6678" font-size="22" font-weight="700">2</text>
+  <text x="166" y="92" fill="#c2c8d4" font-size="13" font-weight="700">Analyze</text>
+  <text x="166" y="110" fill="#c2c8d4" font-size="13" font-weight="700">the app</text>
+  <text x="166" y="150" fill="#5b6678" font-size="12">✓ done</text>
+
+  <!-- Step 3 partial G3->G2 -->
+  <rect x="282" y="30" width="116" height="140" rx="11" fill="#171b24" stroke="#a78bfa" stroke-width="1.8"/>
+  <text x="298" y="58" fill="#a78bfa" font-size="22" font-weight="700">3</text>
+  <text x="298" y="92" fill="#e8eaf0" font-size="13" font-weight="700">Target</text>
+  <text x="298" y="110" fill="#e8eaf0" font-size="13" font-weight="700">state</text>
+  <text x="298" y="134" fill="#9aa3b2" font-size="11">⚠ partial</text>
+  <text x="298" y="152" fill="#9aa3b2" font-size="11" font-weight="700">G3 → G2</text>
+
+  <!-- Step 4 partial G1 -->
+  <rect x="414" y="30" width="116" height="140" rx="11" fill="#171b24" stroke="#2dd4a7" stroke-width="1.8"/>
+  <text x="430" y="58" fill="#2dd4a7" font-size="22" font-weight="700">4</text>
+  <text x="430" y="92" fill="#e8eaf0" font-size="13" font-weight="700">Specs +</text>
+  <text x="430" y="110" fill="#e8eaf0" font-size="13" font-weight="700">code</text>
+  <text x="430" y="134" fill="#9aa3b2" font-size="11">⚠ partial</text>
+  <text x="430" y="152" fill="#9aa3b2" font-size="11" font-weight="700">G1</text>
+
+  <!-- Step 5 partial G2 -->
+  <rect x="546" y="30" width="116" height="140" rx="11" fill="#171b24" stroke="#f5a524" stroke-width="1.8"/>
+  <text x="562" y="58" fill="#f5a524" font-size="22" font-weight="700">5</text>
+  <text x="562" y="92" fill="#e8eaf0" font-size="13" font-weight="700">Epics +</text>
+  <text x="562" y="110" fill="#e8eaf0" font-size="13" font-weight="700">BA review</text>
+  <text x="562" y="134" fill="#9aa3b2" font-size="11">⚠ partial</text>
+  <text x="562" y="152" fill="#9aa3b2" font-size="11" font-weight="700">G2</text>
+
+  <!-- Step 6 not built G1 -->
+  <rect x="678" y="30" width="116" height="140" rx="11" fill="#171b24" stroke="#2dd4a7" stroke-width="1.8"/>
+  <text x="694" y="58" fill="#2dd4a7" font-size="22" font-weight="700">6</text>
+  <text x="694" y="92" fill="#e8eaf0" font-size="13" font-weight="700">Sub-</text>
+  <text x="694" y="110" fill="#e8eaf0" font-size="13" font-weight="700">tasks</text>
+  <text x="694" y="134" fill="#9aa3b2" font-size="11">✗ not built</text>
+  <text x="694" y="152" fill="#9aa3b2" font-size="11" font-weight="700">G1</text>
+
+  <!-- Step 7 not built G1 -->
+  <rect x="810" y="30" width="116" height="140" rx="11" fill="#171b24" stroke="#2dd4a7" stroke-width="1.8"/>
+  <text x="826" y="58" fill="#2dd4a7" font-size="22" font-weight="700">7</text>
+  <text x="826" y="92" fill="#e8eaf0" font-size="13" font-weight="700">Build</text>
+  <text x="826" y="110" fill="#e8eaf0" font-size="13" font-weight="700">agents</text>
+  <text x="826" y="134" fill="#9aa3b2" font-size="11">✗ not built</text>
+  <text x="826" y="152" fill="#9aa3b2" font-size="11" font-weight="700">G1</text>
+</svg>
+<p class="cap">Command chain: <code>/fde-personas</code> → <code>/fde-analyze</code> (steps 2–3, G3) →
+  <code>/fde-plan</code> (steps 3,5, G2) → <code>/fde-implement</code> (steps 4,6,7, G1 — new).</p>
+</div>
+
+<h2 class="section">Group tasks</h2>
+
+<!-- GROUP 3 -->
+<section class="group g3">
+  <div class="head">
+    <span class="tag">Group 3</span><span class="repo">FOIA</span>
+    <span class="steps">STEP 3 (analysis side)</span>
+    <span class="owns">owns <code>fde-analyze.js</code></span>
+  </div>
+  <div class="body">
+    <p class="does"><b>Step 3 — agree the target state, with no framework assumed.</b> The client (acting through
+    a human reviewer) should choose <em>what</em> to modernize, based on an honest comparison of the options.</p>
+    <p class="ctx"><strong>The gap (partial):</strong> right now <code>/fde-analyze</code> assumes the goal is
+    always "replace the Angular front-end with React or Next.js," and at the end it only ever offers React vs
+    Next. That pre-decides the answer. It should instead rank <em>all</em> the modernization options across the
+    whole app — front-end, back-end version, database, infrastructure, dependencies, security — and recommend the
+    highest-value one(s) with reasons, then let a human pick.</p>
+    <ul class="tasks">
+      <li><span class="id">3a.1</span><span class="t"><b>Add a "Modernization Opportunity Assessment"</b><span>A new section in the analysis report that ranks every modernization option across the whole app, each with a rough effort estimate and the reason it matters.</span><div class="prompt"><span class="lbl">Example prompt for Claude</span>Read .claude/workflows/fde-analyze.js and section §17 of combined_workflow.md. Add a "Modernization Opportunity Assessment" phase to /fde-analyze that ranks every modernization vector across the whole repo — frontend framework, backend version, database, infrastructure, dependencies, security — each with a rough effort estimate and rationale, presented ranked, BEFORE the existing frontend scope phase. Do not hard-code React/Next as the target. Walk me through the plan, then show the diff.</div></span></li>
+      <li><span class="id">3a.2</span><span class="t"><b>Stop assuming the front-end is the target</b><span>Keep reading the whole codebase, but present the ranked options instead of pre-selecting React/Next.</span><div class="prompt"><span class="lbl">Example prompt for Claude</span>In .claude/workflows/fde-analyze.js, change the SCOPE phase so it no longer assumes the Angular frontend is automatically in-scope. Keep 100% whole-repo coverage, but have the final report present the ranked modernization options from the assessment instead of pre-selecting React vs Next.js. Show me what changes before you edit.</div></span></li>
+      <li><span class="id">3a.3</span><span class="t"><b>Give each finding a stable ID</b><span>Tag findings with simple IDs (F-001, F-002…) so later steps can trace work back to them. Group 2's review gate depends on these IDs.</span><div class="prompt"><span class="lbl">Example prompt for Claude</span>In .claude/workflows/fde-analyze.js, add a stable ID (F-001, F-002, …) to every finding the analysis produces. Make the IDs appear in the findings schema and in the written report, so /fde-plan can reference them later. Keep the IDs stable within a run. Show the diff.</div></span></li>
+    </ul>
+    <div class="meta">
+      <span class="m"><b>Test on:</b> <code>FOIA</code> clone</span>
+      <span class="m"><b>Branch:</b> <code>g3-analyze</code> → main</span>
+      <span class="m"><b>Touches:</b> <code>fde-analyze.js</code></span>
+    </div>
+  </div>
+</section>
+
+<!-- GROUP 2 -->
+<section class="group g2">
+  <div class="head">
+    <span class="tag">Group 2</span><span class="repo">Contracts</span>
+    <span class="steps">STEPS 3 (plan side) + 5</span>
+    <span class="owns">owns <code>fde-plan.js</code></span>
+  </div>
+  <div class="body">
+    <p class="does"><b>Step 3 (plan side) + Step 5 — turn the chosen target into epics, stories, and a reviewed
+    plan.</b> Once a human picks what to modernize, the plan command should handle it and organize the work.</p>
+    <p class="ctx"><strong>The gaps (partial):</strong> (1) <code>/fde-plan</code> only accepts "react" or
+    "nextjs" and only knows how to plan a framework swap — it should accept whatever target the analysis
+    recommends, and handle both a <em>migration</em> (e.g. Angular→React) and an <em>upgrade</em> (e.g. a version
+    bump like Spring Boot 2→3). (2) It writes user stories and a stakeholder review today, but there is no clear
+    epic → story → subtask structure and no business-analyst sign-off step.</p>
+    <ul class="tasks">
+      <li><span class="id">2.1</span><span class="t"><b>Accept any target + a work mode</b><span>Loosen the target check (today it's hard-limited to <code>react|nextjs</code>) to accept whatever the analysis recommends, and add a mode: <em>migrate</em> or <em>upgrade</em>.</span><div class="prompt"><span class="lbl">Example prompt for Claude</span>Read .claude/workflows/fde-plan.js. Around line 21 the target is hard-limited to react|nextjs. Loosen it to accept any target string the analysis recommends, and add an optional mode arg: "migrate" (framework swap, e.g. Angular→React) or "upgrade" (version bump, e.g. Spring Boot 2→3) that adjusts the research and spec wording. Keep current default behavior. Show the diff.</div></span></li>
+      <li><span class="id">2.2</span><span class="t"><b>Build an epic → story → subtask structure</b><span>Organize the plan as a clear hierarchy, not a flat list.</span><div class="prompt"><span class="lbl">Example prompt for Claude</span>In .claude/workflows/fde-plan.js, restructure the plan output into an explicit epic → story → subtask hierarchy instead of a flat story list. Update the relevant schema and the report section so the hierarchy is clear. Show me the plan before you edit.</div></span></li>
+      <li><span class="id">2.3</span><span class="t"><b>Add a business-analyst review gate</b><span>A sign-off step that checks every story traces back to an analysis finding ID (from Group 3) before the plan is final.</span><div class="prompt"><span class="lbl">Example prompt for Claude</span>In .claude/workflows/fde-plan.js, add a business-analyst (BA) review gate phase that checks every user story traces back to an analysis finding ID (F-001 style) from the /fde-analyze report, and flags any story with no traceable evidence before the plan is finalized. Show the diff.</div></span></li>
+    </ul>
+    <div class="meta">
+      <span class="m"><b>Test on:</b> <code>Contracts</code> clone</span>
+      <span class="m"><b>Branch:</b> <code>g2-plan</code> → main</span>
+      <span class="m"><b>Touches:</b> <code>fde-plan.js</code></span>
+    </div>
+  </div>
+</section>
+
+<!-- GROUP 1 -->
+<section class="group g1">
+  <div class="head">
+    <span class="tag">Group 1</span><span class="repo">Grants</span>
+    <span class="steps">STEPS 4 + 6 + 7</span>
+    <span class="owns">owns <code>fde-implement.js</code> (new)</span>
+  </div>
+  <div class="body">
+    <p class="does"><b>Steps 4, 6, 7 — turn the plan into buildable work.</b> Galent's last steps take the plan
+    and produce actual implementation detail. None of this exists yet, so Grants builds a brand-new command for
+    it. (Grants' user profiles are already done — no persona work here.)</p>
+    <p class="ctx"><strong>The gaps:</strong> step 4 (partial) — the plan only describes each piece's interface
+    (its inputs and outputs) but gives no before/after code snippets. Step 6 (not built) — nothing breaks work
+    into pieces small enough for one engineer. Step 7 (not built) — there are no "build" agents that draft an
+    implementation with a strong model and carry it out with a cheaper one. Because this is a new file, it can't
+    collide with the other groups.</p>
+    <ul class="tasks">
+      <li><span class="id">1.1</span><span class="t"><b>New <code>/fde-implement</code> command — code-snippet specs</b><span>Create <code>fde-implement.js</code>. For each unit of work in the plan, write an implementation spec with before/after code snippets to <code>./fde-spec/&lt;unit&gt;.md</code>, plus acceptance criteria. <em>(Start here — smallest, highest value.)</em></span><div class="prompt"><span class="lbl">Example prompt for Claude</span>Create a new dynamic workflow at .claude/workflows/fde-implement.js, invoked as /fde-implement, that takes a /fde-plan report and, for each unit of work, writes an implementation spec with before/after code snippets and acceptance criteria to ./fde-spec/&lt;unit&gt;.md. Follow the patterns in the existing fde-plan.js (meta block, agent()/pipeline(), sonnet model, report-only). Never edit the real app. Show me the script before saving it.</div></span></li>
+      <li><span class="id">1.2</span><span class="t"><b>Break work into single-engineer subtasks</b><span>Split each plan item into subtasks small enough for one person, each with its own acceptance criteria.</span><div class="prompt"><span class="lbl">Example prompt for Claude</span>Extend .claude/workflows/fde-implement.js so it breaks each plan item into single-engineer subtasks, each with its own acceptance criteria, written alongside the specs in ./fde-spec/. Show the diff.</div></span></li>
+      <li><span class="id">1.3</span><span class="t"><b>Add build agents (plan with the strong model, act with the cheap one)</b><span>Per subtask: draft with opus, carry out with sonnet, writing ONLY to a sandbox folder, with a test + rollback for each subtask. <em>(Heaviest — do last; a working skeleton by tomorrow is fine.)</em></span><div class="prompt"><span class="lbl">Example prompt for Claude</span>In .claude/workflows/fde-implement.js, add build agents per subtask: a plan stage on opus and an act stage on sonnet, writing ONLY into a sandbox dir passed as an arg, with a test step and a rollback note per subtask. Use isolation:'worktree' and a bounded run budget so it can't run away. Start with a working skeleton. Show me the script.</div></span></li>
+    </ul>
+    <div class="meta">
+      <span class="m"><b>Test on:</b> <code>Grants</code> clone</span>
+      <span class="m"><b>Branch:</b> <code>g1-implement</code> → main</span>
+      <span class="m"><b>Touches:</b> <code>fde-implement.js</code> (new file)</span>
+    </div>
+  </div>
+</section>
+
+<h2 class="section">The two cross-group handoffs</h2>
+<div class="callout dep">
+  <h3>Plain-text handoffs (so no one blocks anyone)</h3>
+  <p><strong>Group 3 → Group 2:</strong> Group 3 stamps finding IDs (<code>F-001…</code>); Group 2's review gate
+  checks each story points back to one. Agree the ID format at the start of the day.</p>
+  <p><strong>Group 2 → Group 1:</strong> Group 1's new command reads Group 2's plan (its stories/subtasks) as
+  input. Group 1 can build against a small sample plan until Group 2's lands, so the two never wait on each other.</p>
+</div>
+
+<h2 class="section">Ground rules — why this avoids merge conflicts</h2>
+<div class="callout">
+  <ul class="rules">
+    <li><strong>One file per group.</strong> G3 → <code>fde-analyze.js</code>, G2 → <code>fde-plan.js</code>, G1 → new <code>fde-implement.js</code>. No file touched twice.</li>
+    <li><strong>Test on your own project copy.</strong> Each team runs against its own clone.</li>
+    <li><strong>Profiles are settled.</strong> Grants is done; no persona regeneration is part of this sprint.</li>
+    <li><strong>Don't edit the shared design docs</strong> (<code>combined_workflow.md</code>, <code>current-plan.md</code>) during the sprint — the lead folds in status at the end.</li>
+    <li><strong>Branch off the current <code>main</code>.</strong> It already has the latest fixes merged.</li>
+    <li><strong>One pull request per group.</strong> Disjoint files → merge in any order.</li>
+  </ul>
+</div>
+
+<footer>
+  Source of these tasks: the GalentAI 7-step coverage table and roadmap in <code>current-plan.md</code> (steps 3–7,
+  marked partial / not built). Setup + how to run: <code>fde-engine-SETUP.md</code>. Design rationale:
+  <code>combined_workflow.md</code> (§17 = target-neutral, the basis for step 3).
+</footer>
+</div>
+</body>
+</html>
