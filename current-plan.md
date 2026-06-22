@@ -37,8 +37,10 @@ contract-payment-flow/  grants-portal-modern/  foia-response-pipeline/   ← per
 ```
 
 ## The three workflows (all sonnet, report-only, no app edits)
-- **`/fde-personas`** — discover stakeholders → write ONE canonical card per persona to `personas/<slug>.md`
-  + `personas/README.md` index. Self-contained (persona-synthesis skill retired). Run once per repo.
+- **`/fde-personas`** — INVENTORY existing cards (git staleness, symbol-range) → DISCOVER → SYNTHESIZE (re-read
+  only cited evidence) → WRITE (per-persona) → INDEX. Writes ONE canonical card per persona to `personas/<slug>.md`
+  + `personas/README.md` index. Self-contained (persona-synthesis skill retired). Run once per repo, then after
+  code changes — **incremental**: reuses unchanged canonical cards, only (re)builds new/stale ones.
 - **`/fde-analyze`** — token-frugal: structural MAP pass (`repomix --compress` → `ctags` → `ripgrep`, 100%
   coverage, near-zero AI tokens) → SCOPE-tier → deep-read ONLY in-scope+boundary (lean batches of 6; blind
   A/B + adjudicator if `{thorough:true}`) → MERGE (cluster/schema/personas) → REPORT (writes
@@ -173,3 +175,9 @@ and `{thorough}` (A+B+adjudicator per file). Scope knob is the right, implemente
   (file:symbol)` + hard rule + discover/synth prompts + schema descs), fde-analyze.js (EVIDENCE_RULES + Ph0
   loader header match + personas schema). Transient per-run numeric lineStart/lineEnd kept (regenerated each
   run, don't rot). Existing grants/foia cards still title "(file:line)" — re-run /fde-personas to re-anchor.
+- 2026-06-22: `/fde-personas` token optimization (branch `persona-optimization`, commit ea887ea). Re-runs were
+  rebuilding all personas from scratch (~76% of a window). Added INVENTORY phase: reuse canonical cards whose
+  cited code is unchanged (git staleness at symbol-range granularity via `git log -L`); synth re-reads ONLY
+  cited evidence (not whole repo); per-persona WRITE replaces the ~27.5K all-cards dump; metadata-only INDEX.
+  Legacy/other-skill cards detected (`canonical` flag) + cleanly regenerated; re-slugged dups flagged, not
+  auto-deleted. NOT runtime-tested yet (syntax-clean). Engine file synced into contract-payment-flow.

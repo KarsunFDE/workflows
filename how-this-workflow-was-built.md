@@ -80,6 +80,19 @@ not just the result.
 42. "Include `combined_workflow.md` in the deliverable as reference."
 43. "Summarize the prompts I gave." → this document.
 
+## Phase 6 — Token optimization (`/fde-personas` re-runs)
+
+44. "A full `/fde-personas` run ate ~76% of a window; it's meant to run after every code change — why so
+    expensive, and fix it." → traced cost to (1) every synth agent re-walking the whole repo, (2) a single
+    Write agent carrying all cards (~27.5K tok) + re-reading every file, (3) no incremental reuse.
+45. "Does optimizing contradict the internal/external fact-check goal?" → no: the blind A/B fact-check lives in
+    `/fde-analyze`, not `/fde-personas`. Reframed the synth re-read as the *external check of the discover pass*
+    and scoped it to cited files (kept the intent, dropped the whole-repo re-walk).
+46. "Implement all three." → INVENTORY phase (git staleness, symbol-range via `git log -L`) reuses unchanged
+    canonical cards; synth reads only cited evidence; per-persona WRITE replaces the central dump; metadata-only
+    INDEX. Legacy/other-skill cards detected + cleanly regenerated; re-slugged duplicates flagged, never
+    auto-deleted. First-run cost ~same→modestly lower; re-run cost near-zero when little changed.
+
 ---
 
 ## Method, in one line
