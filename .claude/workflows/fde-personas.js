@@ -44,9 +44,10 @@ migration-risk statement reviewers care about.>
 - <friction this role hits today — workflow slowdowns, manual steps, gaps the migration could fix or worsen>
 (REQUIRED — every persona has this section. Ground in code/UX where possible; mark as inference if reasoned.)
 
-## Evidence (file:line)
-- \`path/to/file.ext:line\` — <what it shows>
-(CODE citations ONLY. Real files + line numbers. Do NOT put regulations here.)
+## Evidence (file:symbol)
+- \`path/to/file.ext:symbolName\` — <what it shows>   (symbol = function/class/interface/enum/route/const name — it survives edits that raw line numbers don't; add "(~line)" only as a hint)
+- \`path/to/config.ext:line\` — <what it shows>       (bare file:line ONLY where no named symbol applies — config, templates, markup)
+(CODE citations ONLY. PREFER a stable symbol anchor over a raw line number. Do NOT put regulations here.)
 
 ## Reviewer lens
 > <A short refute-mode system prompt for /fde-plan. State this persona's authority + constraints, each
@@ -62,7 +63,7 @@ migration-risk statement reviewers care about.>
 HARD RULES:
 - ROLES, NOT PEOPLE. Never include named accounts, demo fixtures, or display names (e.g. "Dr. Maria Alvarez").
   If the code has example fixtures, ignore the names — describe the role only.
-- Evidence = CODE file:line only. Regulations belong under "Regulatory anchors", never under Evidence.
+- Evidence = CODE only, cited as \`file:symbol\` (a stable function/class/enum/route/const name; raw line only where no symbol applies). Regulations belong under "Regulatory anchors", never under Evidence.
 - Do NOT add sections like "Cares About", "HITL Gate", or "Access Level". Use the fixed set above only.
 - Cite file:line for every capability/constraint claim. No guessing, no uncited authority.`;
 
@@ -77,7 +78,7 @@ const CANDIDATES = {
         required: ['name', 'evidence', 'confidence'],
         properties: {
           name: { type: 'string', description: 'expanded role name, e.g. "Contracting Officer"' },
-          evidence: { type: 'array', items: { type: 'string' }, description: 'file:line citations (code, not comment)' },
+          evidence: { type: 'array', items: { type: 'string' }, description: 'file:symbol citations preferred (stable anchor; raw line only where no symbol applies); code, not comment' },
           signals: { type: 'string', description: 'what in the code points to this persona' },
           confidence: { type: 'number' },
           evidence_type: { type: 'string', enum: ['code', 'comment-only', 'readme-only'] },
@@ -97,7 +98,7 @@ const PERSONA_CARD = {
     klass: { type: 'string', description: 'the Class line value (internal/external · scope · human/service)' },
     authority: { type: 'string', description: 'one-line authority summary for the README index' },
     confidence: { type: 'number' },
-    evidence: { type: 'array', items: { type: 'string' }, description: 'code file:line citations only' },
+    evidence: { type: 'array', items: { type: 'string' }, description: 'code citations only, file:symbol preferred (raw line only where no symbol applies)' },
     reviewerLens: { type: 'string', description: 'the refute-mode lens for /fde-plan' },
     markdown: { type: 'string', description: 'the FULL canonical card, ready to write to personas/<slug>.md' },
   },
@@ -110,8 +111,9 @@ const candidates = await agent(
    repository. Infer them from: role/permission enums and keys (e.g. a roles.ts union or ROLE_PROFILES),
    route and API names, DB entities, UI labels, audit actors/event types, regulation references (e.g. FAR/
    CFR clauses), service names, and the README/docs.
-   Follow the fde-analysis skill evidence rules: cite file:line for every signal, tag evidence_type (code beats
-   comment/readme), and score confidence. Expand abbreviations to full role names (e.g. CO -> Contracting
+   Follow the fde-analysis skill evidence rules: cite \`file:symbol\` for every signal (a stable function/class/
+   enum/route name; raw line only where no symbol applies), tag evidence_type (code beats comment/readme),
+   and score confidence. Expand abbreviations to full role names (e.g. CO -> Contracting
    Officer) ONLY when evidence or the README supports it. ROLES, NOT PEOPLE — ignore named demo accounts.
    Do NOT invent personas with no evidence.`,
   { label: 'discover-personas', phase: 'Discover', schema: CANDIDATES, agentType: 'Explore', model: MODEL }
@@ -129,7 +131,8 @@ const synthesized = (
          to ground every claim — do not rely only on the signals below.
          Candidate evidence: ${JSON.stringify(p.evidence)}. Signals: ${p.signals || ''}. Confidence: ${p.confidence}.
          Produce the full card markdown, a kebab-case slug for the filename, the Role id / Class / one-line
-         authority for the index, the code file:line evidence list, and the Reviewer lens text.
+         authority for the index, the code evidence list (cite \`file:symbol\` — stable function/class/enum/
+         route names; raw line only where no symbol applies), and the Reviewer lens text.
          ${CARD_SPEC}`,
         { label: `synth:${p.name}`, phase: 'Synthesize', schema: PERSONA_CARD, model: MODEL }
       )
