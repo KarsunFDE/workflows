@@ -21,6 +21,23 @@ is a CLIENT decision, instructor acting as client wants React), and must run wit
 | 6 | Subtasks (single-engineer) | ❌ not built |
 | 7 | Implementation agents plan(opus)+act(sonnet) | ❌ not built; all agents pinned sonnet |
 
+> **Added scope (2026-06-22): cloud-architecture mapping.** The workflow must also map the modernized app's
+> cloud deployment — **Docker containers on Amazon EKS** (Elastic Kubernetes Service). Cross-cutting capability,
+> not a new Galent step: it threads inventory (`/fde-analyze`) → design (`/fde-plan`) → manifests
+> (`/fde-implement`). Anchor on the official [AWS EKS Best Practices Guide](https://docs.aws.amazon.com/eks/latest/best-practices/introduction.html).
+
+### Sprint decomposition — 3 groups, one engine file each (the merge-conflict firewall)
+Galent steps 3–7 (partial/not-built above) + cloud arch are split so **each group owns a different engine file** —
+no two groups edit the same file, so no merge conflicts. Full task sheet with copy-paste prompts: **`tasks.html`**.
+
+| Group | Owns | Galent steps + cloud (all PLANNED/in-progress, not yet merged) |
+|---|---|---|
+| **G3 · FOIA** | `fde-analyze.js` (+ `fde-analysis` SKILL) | **Step 3 (analysis):** ranked Modernization Opportunity Assessment (3a.1) · stop auto-picking frontend in SCOPE (3a.2) · finding IDs F-001 (3a.3). **Cloud:** `## Deployment & Container Inventory` (3a.4) |
+| **G2 · Contracts** | `fde-plan.js` | **Step 3 (plan):** accept any target + `mode: migrate\|upgrade` (2.1) · **Step 5:** epic→story→subtask hierarchy (2.2) + BA review gate validating story→finding-ID (2.3). **Cloud:** EKS deployment design (2.4) |
+| **G1 · Grants** | **new `fde-implement.js`** | **Steps 4/6/7:** code-snippet specs → `./fde-spec/<unit>.md` (1.1) · single-engineer subtasks (1.2) · build agents plan-opus/act-sonnet, sandbox + test/rollback (1.3). **Cloud:** emit Docker + EKS manifests (1.4) |
+
+Cross-group handoffs (loose text contracts, so no one blocks): G3 finding-IDs → G2 BA gate; G3 `## Deployment & Container Inventory` → G2 EKS design; G2 plan → G1 implement. Build order within a group: 2.1→2.2→2.3→2.4 (G2); 3a.1→3a.2→3a.3→3a.4 (G3); 1.1→1.2→1.3→1.4 (G1).
+
 ---
 
 ## Repo layout (Model A)
@@ -150,19 +167,25 @@ and `{thorough}` (A+B+adjudicator per file). Scope knob is the right, implemente
 ---
 
 ## Roadmap / build order (recommended)
-1. **(NEXT)** §17 target-neutral step-3 — add ranked "Modernization Opportunity Assessment" to `/fde-analyze`
-   (before frontend scope); loosen `/fde-plan` target guard (currently `react|nextjs`, fde-plan.js:21) to accept
-   any (vector, target); add `mode: migrate|upgrade`. Smallest diff, biggest fidelity gain. Unblocks "don't assume React".
+> Now assigned across the 3-group sprint (see Sprint decomposition above). Owners in **bold** per item.
+1. **(IN PROGRESS)** §17 target-neutral step-3 — **[G3]** add ranked "Modernization Opportunity Assessment" to
+   `/fde-analyze` + stop auto-picking frontend; **[G2]** loosen `/fde-plan` target guard (was `react|nextjs`,
+   fde-plan.js:21) to accept any target + add `mode: migrate|upgrade`. Smallest diff, biggest fidelity gain.
 2. **Traceability ID spine** — stable IDs in `/fde-analyze` (F-001…); downstream artifacts carry parent IDs;
    BA gate validates coverage. Build EARLY (retrofitting after fan-out is expensive).
    **Consider building this AS a deterministic code graph — see KG-1 below; node IDs = the spine.**
-3. **Step 4** — code-snippet implementation specs: fan-out per work-unit → before/after snippet + contract,
-   written to `./fde-spec/<unit>.md` (by reference, not report body); comprehension-validation gate before
-   translation (SME sign-off); acceptance criteria per unit.
-4. **Steps 5/6** — explicit epic→story→subtask hierarchy + BA refute-review gate (uses IDs).
-5. **Step 7** — implementation agents: per subtask opus-PLAN → sonnet-ACT (pipeline), sandbox-only writes,
-   `isolation:'worktree'`, global run budget (caps are multiplicative — bound the product, not 3 local caps),
-   tests + rollback per subtask before ACT.
+3. **Step 4** — **[G1, new `/fde-implement.js`]** code-snippet implementation specs: fan-out per work-unit →
+   before/after snippet + contract, written to `./fde-spec/<unit>.md` (by reference, not report body);
+   comprehension-validation gate before translation (SME sign-off); acceptance criteria per unit.
+4. **Step 5** — **[G2, `/fde-plan.js`]** explicit epic→story→subtask hierarchy + BA refute-review gate (uses the
+   F-001 IDs from G3). **Step 6** — **[G1, `/fde-implement.js`]** single-engineer subtasks.
+5. **Step 7** — **[G1, `/fde-implement.js`]** implementation agents: per subtask opus-PLAN → sonnet-ACT (pipeline),
+   sandbox-only writes, `isolation:'worktree'`, global run budget (caps are multiplicative — bound the product,
+   not 3 local caps), tests + rollback per subtask before ACT.
+6. **Cloud architecture (Docker → Amazon EKS)** — cross-cutting, split along the chain: **[G3]** inventory
+   containers/infra under `## Deployment & Container Inventory` → **[G2]** design the EKS deployment (per service:
+   container spec + Deployment/Service/namespace/scaling) → **[G1]** emit Dockerfiles + EKS manifests into the
+   sandbox. Anchor on the [AWS EKS Best Practices Guide](https://docs.aws.amazon.com/eks/latest/best-practices/introduction.html).
 
 ## Quick fixes (cheap, any time)
 - Log on bare-string args (C2) and on actual `.slice()` truncation (C4).
@@ -231,6 +254,15 @@ Sources: Microsoft GraphRAG indexing overview · arXiv 2601.08773 (AST-derived v
   this file) corrected to stop claiming default rigor (A/B = `{thorough}`, vote/loop = `{rigorous}`). **P3:** added
   workflow-enablement + v2.1.154 prereq to `fde-engine-SETUP.md`. **P4:** corrected C1 (above) + hand-wrote the
   missing `contract-payment-flow/personas/README.md` index. All scripts `node --check` clean; not yet runtime-tested.
+- 2026-06-22: sprint decomposition + cloud-architecture scope added. Galent steps 3–7 split across 3 groups by
+  engine-file ownership (G3=`fde-analyze.js`, G2=`fde-plan.js`, G1=new `fde-implement.js`) so there are no merge
+  conflicts; full task sheet = `tasks.html` (PR #12). NEW requirement: map the modernized app's cloud deployment
+  as **Docker containers on Amazon EKS** — threads inventory(G3)→design(G2)→manifests(G1), anchored on the AWS EKS
+  Best Practices Guide. Reflected in this file (Sprint decomposition + roadmap items 1/4/5 owners + new item 6) and
+  combined_workflow.md (§19 cloud arch, §20 sprint decomposition, §0.1 table adds planned `/fde-implement`).
+  Persona status now: Grants canonical+file:symbol (gold), Contracts canonical/file:line, FOIA needs full re-run.
+  (Note: G2's 2.1 plan-side work is in progress on branch `g2-plan`, NOT yet merged — this doc reflects the plan,
+  not its completion.)
 - 2026-06-22: `/fde-personas` token optimization (branch `persona-optimization`, commit ea887ea). Re-runs were
   rebuilding all personas from scratch (~76% of a window). Added INVENTORY phase: reuse canonical cards whose
   cited code is unchanged (git staleness at symbol-range granularity via `git log -L`); synth re-reads ONLY
