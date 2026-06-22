@@ -270,7 +270,8 @@ log(`Backlog: ${epics.length} epic(s), ${flatStories.length} story(ies), ${flatS
 // records (surfaced in the report) rather than hard-stopping. Degrades gracefully if the analysis carries no IDs
 // yet (3a.3 not merged into the report being planned against).
 phase('BA Gate');
-const findingIds = Array.from(new Set(groundwork.match(/\bF-\d{2,}\b/g) || []));
+// Match F-1, F-001, F-1234 alike (\d+, not \d{2,}) — defensive against G3 not zero-padding the IDs.
+const findingIds = Array.from(new Set(groundwork.match(/\bF-\d+\b/g) || []));
 let baGate = { stories: [], uncoveredFindings: [], verdict: 'all-traced', note: '' };
 if (!findingIds.length) {
   baGate.note = 'Analysis report exposes no F-### finding IDs (3a.3 not in this report) — traceability not enforced this run; stories pass unvalidated. Re-run /fde-analyze once it stamps finding IDs.';
@@ -408,7 +409,17 @@ if (sandboxDir) {
 // Consumes Group 3's `## Deployment & Container Inventory` (3a.4) when present; degrades to inferring services
 // from the spec if it isn't there yet. Spec-level (no full YAML); anchored on the AWS EKS Best Practices Guide.
 phase('Cloud');
-const invMatch = groundwork.match(/##\s*Deployment\s*&\s*Container\s*Inventory[\s\S]*?(?=\n##\s|$)/i);
+// Strict heading is the agreed G3 contract ("## Deployment & Container Inventory"). Fall back to a looser probe
+// (any heading mentioning both "Container" and "Inventory" — tolerates drift like "...and Container Inventory")
+// and WARN, so a present-but-renamed inventory isn't silently missed and dropped to "infer services".
+let invMatch = groundwork.match(/##\s*Deployment\s*&\s*Container\s*Inventory[\s\S]*?(?=\n##\s|$)/i);
+if (!invMatch) {
+  const loose = groundwork.match(/##[^\n]*Container[^\n]*Inventory[\s\S]*?(?=\n##\s|$)/i);
+  if (loose) {
+    invMatch = loose;
+    log('Cloud: inventory heading did not match the exact "## Deployment & Container Inventory" contract — used a looser Container/Inventory heading. Confirm the exact heading with Group 3.');
+  }
+}
 const inventory = invMatch ? invMatch[0].slice(0, 30000) : '';
 const cloudArch = await agent(
   `Design how the modernized system runs in the cloud as DOCKER CONTAINERS on AMAZON EKS (Kubernetes).
