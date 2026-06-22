@@ -3,6 +3,14 @@
 A reusable Claude Code workflow engine that analyzes a legacy codebase and plans an Angular → React/Next.js
 modernization. **You don't build anything — copy files and run.** All subagents run on **sonnet**.
 
+## 0. Prerequisites (do this FIRST — common first-run blocker)
+These are **dynamic workflows**, gated behind a version + a setting:
+- **Claude Code v2.1.154 or later.** Check with `claude --version`; update if older.
+- **Workflows must be enabled.** On Pro, turn on the **Dynamic workflows** row in `/config` (it is off by
+  default). If `/fde-personas` etc. don't appear or won't run, this is almost always why. Available on all paid
+  plans (Pro/Max/Team/Enterprise) + Anthropic API, Bedrock, Vertex, Foundry.
+- Run `/workflows` to confirm the runtime is live before invoking the engine.
+
 ## 1. Install (copy into your repo)
 ```
 .claude/workflows/   fde-personas.js  fde-analyze.js  fde-plan.js

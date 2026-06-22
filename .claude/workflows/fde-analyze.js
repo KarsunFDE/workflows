@@ -181,6 +181,29 @@ best-effort locator (regenerated each run, so they don't rot); tag category
 (fact|inference|recommendation) and evidence_type (code|comment-only — comment-only = GHOST, never assert as real);
 confidence 0.0-1.0 (facts=1.0); read the ENTIRE assigned file before any finding (no skimming/guessing).`;
 
+// Clustering/schema/coverage rules are inlined too: workflow subagents do NOT auto-load skill bodies (only the
+// main session preloads skill content; an agent() call has no `skills` field), so a bare "use the fde-analysis
+// skill" reference is unreliable. Inline the rules so the agent obeys them even when the skill never loads.
+const CLUSTER_RULES = `
+fde-analysis clustering rules: group findings by BUSINESS CAPABILITY, never by directory (a capability spread across
+dirs is ONE capability; use directory structure only as a cross-check). Per capability give: description, supporting
+services/data/workflows (cited), users, business value, what-breaks-if-removed, confidence, and criticality —
+Critical = irreversible/money/legal-authority/audit; High = core workflow; Medium = supporting; Low = peripheral.
+Duplication: same logic in N places => record ONCE with duplicated_at:[file:line,...], never count copies as distinct
+features. Demote comment-only findings to ghosts (referenced, not implemented). Drop nothing silently.`;
+
+const SCHEMA_RULES = `
+fde-analysis schema rules: classify each file schema-defining vs data-bearing. If NO schema files exist, RECONSTRUCT
+entity shape from code (models/interfaces/forms/DTOs), cite file:line, mark source=reconstructed. Link schema -> entity
+-> consumers. Flag ORPHANED (on disk, unreferenced) and MISSING (used, never defined) schemas. Treat constraints
+(length/NOT NULL/enum/FK) as candidate business rules. Emit a markdown table:
+| Entity | Field | Type | Constraint | file:line | source |.`;
+
+const COVERAGE_RULES = `
+fde-analysis completeness rule: reconcile the discovered work-list against files actually read/mapped; report coverage
+as read/total and list every missed file with a reason. Any cap/truncation/sampling MUST be stated outright — silent
+truncation reads as full coverage when it is not.`;
+
 // ───────────────────────── WORKFLOW ─────────────────────────
 
 // Ph0 LOAD — this repo's curated persona cards (per-repo, not baked). Written by /fde-personas.
@@ -317,6 +340,7 @@ const partialClusters = (
       agent(
         `Use the fde-analysis skill (clustering). Cluster THIS BATCH (${i + 1}/${batches.length}) of cited findings into business
          capabilities; detect duplication (duplicated_at); demote comment-only ghosts; score criticality.
+         ${CLUSTER_RULES}
          Findings: ${JSON.stringify(b)}`,
         { label: `cluster:${i + 1}/${batches.length}`, phase: 'Merge', schema: CLUSTERS, model: MODEL }
       )
@@ -329,6 +353,7 @@ const clusters =
     : await agent(
         `Use the fde-analysis skill (clustering). MERGE these per-batch cluster sets into ONE: combine same-named capabilities
          (union supporting + duplicated_at), keep highest criticality, merge ghosts/duplications. Drop nothing.
+         ${CLUSTER_RULES}
          Cluster sets: ${JSON.stringify(partialClusters)}`,
         { label: 'cluster-merge', phase: 'Merge', schema: CLUSTERS, model: MODEL }
       );
@@ -341,6 +366,7 @@ const [schemaMap, personas] = await parallel([
       `Use the fde-analysis skill (schema). Build the schema map from these data/rule findings + the file list. Classify
        schema-defining vs data-bearing; reconstruct shape from code where no schema file exists (cite file:line,
        source=reconstructed); flag orphaned + missing schemas.
+       ${SCHEMA_RULES}
        Findings: ${JSON.stringify(dataFindings)}
        Files: ${JSON.stringify(files)}`,
       { label: 'schema-map', phase: 'Merge', schema: SCHEMA_MAP, model: MODEL }
@@ -378,6 +404,7 @@ const report = await agent(
       DEEP-read: ${readSet.length} files (${deepPct}% — in-scope/boundary only; out-of-scope is signature-level).
       ${scopeNote} Dual-analyst agreement: ${avgAgreement}.
       State plainly that out-of-scope files were mapped at signature level, not body-read.
+      ${COVERAGE_RULES}
    8. Modernization Options — PRESENT React vs Next.js profiles for the in-scope frontend. DO NOT pick one
       (selection happens via /fde-plan <target>).
    Inputs:
