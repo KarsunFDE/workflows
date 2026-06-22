@@ -47,13 +47,15 @@ Rules of placement (per Claude Code best practices):
 
 ## 0.1 The workflows — what exists, what each does, when to call
 
-Three workflows + one skill make up the engine. All BUILT.
+Three workflows + one skill are BUILT; a fourth — **`/fde-implement`** — is PLANNED (Galent steps 4/6/7, owned by
+Group 1; see §20). Cloud-architecture mapping (Docker → Amazon EKS) threads across analyze/plan/implement (§19).
 
 | Command | What it does | When to call | Writes? |
 |---|---|---|---|
 | `/fde-personas` | Discovers stakeholder personas from the repo (roles, routes, regulation refs, audit actors, README), synthesizes an evidence-grounded card + reviewer lens for each, and **writes one canonical card per persona to `personas/<slug>.md`** (+ a `personas/README.md` index; preserves anything already curated). **INCREMENTAL** — an Inventory phase reuses unchanged canonical cards (git staleness, symbol-range) and only (re)builds new/stale personas, so re-runs after code changes are cheap. | **First**, once per repo; then after code/stakeholder changes (cheap re-run). A new group runs this so they never hand-author personas. | `personas/*.md` |
 | `/fde-analyze` | **v3 default (token-frugal):** structural MAP pass (local CLI `repomix --compress`/`ctags`/`ripgrep` — near-zero AI tokens) gives 100% whole-repo coverage + surfaces dup/ghost/missing-schema cheaply → tier files → **deep-read only in-scope+boundary** → cluster → schema map → personas → **report**. Flags: `{full:true}` deep-reads every file (old v2), `{thorough:true}` blind dual-analyst, `{pathPrefix,maxFiles}` scope a test. Ends presenting options (no auto-pick). | **Second**, before any modernization. Run many times. | nothing (report to session) |
 | `/fde-plan <target>` | Takes a chosen target (`react`\|`nextjs`) + the analysis. Research Angular→target mapping → user stories → **persona review (refute-mode)** → spec-level migration plan + roadmap/risk/rollback/test → critic gate → **ModernizationPlan**. Optional prototype into a sandbox dir. | **Third**, after a human reads the analysis and picks a target. `args: {target, analysisReport?, sandboxDir?}`. | report only (prototype only if `sandboxDir` given) |
+| `/fde-implement` *(PLANNED — G1)* | Takes the `/fde-plan` output → per work-unit code-snippet specs to `./fde-spec/<unit>.md` (step 4) → single-engineer subtasks (step 6) → build agents plan-opus/act-sonnet, sandbox-only + test/rollback (step 7). Also emits Docker + EKS manifests for the cloud arch (§19). | **Fourth**, after a plan is approved. Sandbox writes only. | `./fde-spec/*` + sandbox (never the real app) |
 
 Run order:
 ```
@@ -464,7 +466,8 @@ Projected `/fde-analyze` full-repo ~700k–1M tokens (Pro 5h window ≈ a couple
 Sample output: `fde-analyze-sample-report.html`.
 
 **Open / next:**
-- Build **v4** (§17) — target-neutral assessment + general `/fde-plan` (migrate vs upgrade). Biggest pending item.
+- **v4 (§17) is now IN PROGRESS across the 3-group sprint (§20)** — target-neutral assessment [G3] + general
+  `/fde-plan` migrate/upgrade [G2]. Plus cloud-architecture mapping (§19) and the new `/fde-implement` [G1].
 - Full-run-test `/fde-plan`; full-repo `/fde-analyze` cost is projected, not measured.
 - Single-file chunking for oversized files (§8 Ph2) — spec'd, not coded.
 - Decide `/fde-plan` sandbox location (prototype emission, gated on `{sandboxDir}`).
@@ -472,3 +475,48 @@ Sample output: `fde-analyze-sample-report.html`.
 
 **Watch-outs (lessons):** a workflow can finish with a polished report while its core silently no-ops — always
 check the coverage/reliability section. Reports are report-only by design (now also written to a local `.md`).
+
+## 19. Cloud-architecture mapping (Docker → Amazon EKS)  *(NEW — added scope, in progress)*
+
+The workflow must map the modernized app's **cloud deployment**: packaged into **Docker containers** running on
+**Amazon EKS** (Elastic Kubernetes Service). This is a cross-cutting capability, NOT a new Galent step — it threads
+the existing chain, one stage per owned file (so it fits the §20 firewall):
+
+```
+/fde-analyze  → INVENTORY: detect Dockerfiles, compose, existing k8s manifests, IaC (Terraform/CDK), service
+   [G3]          boundaries, ports, stateful deps (DB/queue/cache). Emit a report section titled EXACTLY
+                 `## Deployment & Container Inventory`  (the fixed handoff Group 2 reads).
+/fde-plan     → DESIGN: per service → Docker container spec (base image, build, ports) + the Kubernetes
+   [G2]          resources it needs (Deployment, Service, namespace, replicas/scaling, ConfigMap/Secret).
+                 Spec-level — no full YAML in the report body.
+/fde-implement→ MANIFESTS: emit real Dockerfiles + EKS YAML (Deployment/Service) or a small Helm chart for the
+   [G1]          1–2 highest-value services, INTO THE SANDBOX ONLY. Never touches the real app.
+```
+
+Anchor the design on the official **[AWS EKS Best Practices Guide](https://docs.aws.amazon.com/eks/latest/best-practices/introduction.html)**
+([reliability](https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html),
+[scalability](https://docs.aws.amazon.com/eks/latest/best-practices/scalability.html),
+[aws/aws-eks-best-practices](https://github.com/aws/aws-eks-best-practices)): control plane spans 3 AZs (AWS-managed);
+plan data-plane scaling past ~300 nodes / 5k pods; VPC CNI burns IPs fast → ≥/16 CIDR; well-architected lenses
+(ops/security/reliability/perf/cost). Handoff is a fixed text contract (`## Deployment & Container Inventory`) so
+the three stages never block each other — Group 2 can build against a sample inventory until Group 3's lands.
+
+## 20. Sprint decomposition — 3 groups, one engine file each  *(NEW — the merge-conflict firewall)*
+
+Galent steps 3–7 (§7, the partial/not-built ones) + cloud arch (§19) are split so **each group owns a different
+engine file**. No two groups edit the same file → no GitHub merge conflicts. Full task sheet with copy-paste
+example prompts: **`tasks.html`** (PR #12). Each group runs/tests on its OWN project clone; personas are settled
+(per-project, already generated). **Status: PLANNED / in progress — none of these are merged yet.**
+
+| Group | Owns (firewall) | Galent steps + cloud |
+|---|---|---|
+| **Group 3 · FOIA** | `fde-analyze.js` + `skills/fde-analysis/SKILL.md` | **Step 3 (analysis):** ranked Modernization Opportunity Assessment (§17) + stop auto-tagging frontend in SCOPE + stable finding IDs (`F-001…`). **Cloud (§19):** the `## Deployment & Container Inventory` section. |
+| **Group 2 · Contracts** | `fde-plan.js` | **Step 3 (plan):** accept ANY target + `mode: migrate\|upgrade` (loosen the `react\|nextjs` guard). **Step 5:** epic→story→subtask hierarchy + BA review gate (every story traces to a finding ID). **Cloud (§19):** the Amazon EKS deployment design. |
+| **Group 1 · Grants** | **new `fde-implement.js`** | **Step 4:** code-snippet specs → `./fde-spec/<unit>.md`. **Step 6:** single-engineer subtasks. **Step 7:** build agents plan-opus/act-sonnet, sandbox + test/rollback. **Cloud (§19):** emit Docker + EKS manifests. |
+
+**Cross-group handoffs** (loose text contracts → no one blocks): G3 finding-IDs → G2 BA gate · G3
+`## Deployment & Container Inventory` → G2 EKS design · G2 plan → G1 implement. **Within-group order:**
+G3 3a.1→3a.2→3a.3→3a.4 · G2 2.1→2.2→2.3→2.4 · G1 1.1→1.2→1.3→1.4. Why this split: G2 (Contracts) has the only
+fully-canonical persona set — best base for the persona-driven review/gate; G1 (Grants, personas done) takes the
+brand-new file so it can't collide; G3 (FOIA) owns the analysis end where the target-neutral assessment + inventory
+both live.
