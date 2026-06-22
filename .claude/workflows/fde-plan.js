@@ -6,6 +6,7 @@ export const meta = {
     { title: 'Load' },
     { title: 'Research' },
     { title: 'Stories' },
+    { title: 'BA Gate' },
     { title: 'Review' },
     { title: 'Spec' },
     { title: 'Critic' },
@@ -99,6 +100,30 @@ const STORIES = {
         },
       },
     },
+  },
+};
+
+// BA traceability gate (2.3): forward (story -> finding ID) + backward (finding -> story).
+const BA_GATE = {
+  type: 'object',
+  required: ['stories', 'verdict'],
+  properties: {
+    stories: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'traced'],
+        properties: {
+          id: { type: 'string', description: 'story id (S-001)' },
+          traced: { type: 'boolean', description: 'true if it maps to >=1 analysis finding ID' },
+          tracedTo: { type: 'array', items: { type: 'string' }, description: 'finding IDs / evidence it maps to' },
+          issue: { type: 'string', description: 'why untraced, when traced=false' },
+        },
+      },
+    },
+    uncoveredFindings: { type: 'array', items: { type: 'string' }, description: 'analysis finding IDs NO story covers (backward-traceability gaps)' },
+    verdict: { type: 'string', enum: ['all-traced', 'gaps'] },
+    note: { type: 'string' },
   },
 };
 
@@ -211,6 +236,35 @@ const stories = await agent(
 const epics = (stories && stories.epics) || [];
 const flatStories = epics.flatMap((e) => (e.stories || []).map((s) => ({ ...s, epic: e.id })));
 log(`Backlog: ${epics.length} epic(s), ${flatStories.length} story(ies), ${flatStories.reduce((n, s) => n + ((s.subtasks || []).length), 0)} subtask(s).`);
+
+// Ph2.5 BA GATE — requirements-traceability gate. Bidirectional: forward (every story must trace to an analysis
+// finding ID, F-001 style) + backward (which findings no story covers). With no mid-run input, the gate FLAGS +
+// records (surfaced in the report) rather than hard-stopping. Degrades gracefully if the analysis carries no IDs
+// yet (3a.3 not merged into the report being planned against).
+phase('BA Gate');
+const findingIds = Array.from(new Set(groundwork.match(/\bF-\d{2,}\b/g) || []));
+let baGate = { stories: [], uncoveredFindings: [], verdict: 'all-traced', note: '' };
+if (!findingIds.length) {
+  baGate.note = 'Analysis report exposes no F-### finding IDs (3a.3 not in this report) — traceability not enforced this run; stories pass unvalidated. Re-run /fde-analyze once it stamps finding IDs.';
+  log('BA gate: no finding IDs in the analysis — traceability skipped (note recorded in the report).');
+} else {
+  baGate = await agent(
+    `You are the Business Analyst traceability gate. Validate the backlog against the analysis findings, BOTH ways:
+     - FORWARD: every story MUST trace to >=1 analysis finding ID. A story whose evidence cites a known finding ID
+       (or a file:symbol that clearly maps to one) is traced=true; otherwise traced=false WITH an issue describing
+       what is unsupported. Do NOT invent a trace — if there is no real evidence link, mark it untraced.
+     - BACKWARD: list the analysis finding IDs that NO story covers (uncoveredFindings).
+     verdict='all-traced' ONLY if every story is traced; else 'gaps'.
+     Known analysis finding IDs: ${JSON.stringify(findingIds)}
+     Backlog (epics->stories with evidence): ${JSON.stringify(epics).slice(0, 90000)}`,
+    { label: 'ba-gate', phase: 'BA Gate', schema: BA_GATE, model: MODEL }
+  );
+}
+const untracedStories = (baGate.stories || []).filter((s) => !s.traced);
+const baNote = findingIds.length
+  ? `BA gate: ${(baGate.stories || []).length} story(ies) checked, ${untracedStories.length} UNTRACED, ${(baGate.uncoveredFindings || []).length} uncovered finding(s). Verdict: ${baGate.verdict}.`
+  : 'BA gate: skipped (analysis has no finding IDs yet).';
+log(baNote);
 
 // Ph3 REVIEW — refute-mode stakeholder review.
 //   default : ONE agent reviews through ALL lenses (lean).
@@ -330,6 +384,8 @@ const report = await agent(
    (spec-level table); Backlog (render the Epic -> Story -> Subtask hierarchy with their E/S/T ids, each story's
    persona/want/soThat + acceptance + traced finding-IDs); Stakeholder Review (per persona, risks + how the spec answers them);
    Data Migration / Risk / Rollback / Testing / Deployment / Effort; Critic Gate result; Prototype note.
+   BA Traceability Gate: state the verdict (${baGate.verdict}); list any UNTRACED stories (id + issue) and any
+   uncovered finding IDs; if the gate was skipped, say so and why (${baGate.note ? 'note: ' + baGate.note : 'n/a'}).
    Review tier: ${RIGOROUS ? `RIGOROUS (one critic per lens${voteNote})` : 'lean (1 agent, all lenses, one-shot critic — pass {rigorous:true} for per-lens review + gap-loop)'}.
    Separate Facts / Inferences / Recommendations; keep confidence scores. Then: Epics, Features, Tasks, ADRs,
    Migration Phases, Milestones with an implementation order and called-out blockers, dependencies, quick wins.
@@ -337,6 +393,7 @@ const report = await agent(
    backlog(epics->stories->subtasks)=${JSON.stringify(epics).slice(0, 80000)}
    reviews=${JSON.stringify(reviews).slice(0, 80000)}
    critic=${JSON.stringify(critique || {}).slice(0, 40000)}
+   baGate=${JSON.stringify(baGate || {}).slice(0, 40000)}
    prototype=${prototypeNote.slice(0, 8000)}`,
   { label: 'plan-report', phase: 'Report', model: MODEL }
 );
