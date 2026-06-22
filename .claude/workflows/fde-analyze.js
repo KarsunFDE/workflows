@@ -162,7 +162,7 @@ const PERSONAS = {
         properties: {
           name: { type: 'string' },
           confidence: { type: 'number' },
-          evidence: { type: 'array', items: { type: 'string' }, description: 'code file:line citations' },
+          evidence: { type: 'array', items: { type: 'string' }, description: 'code citations, file:symbol preferred' },
           corroboration: { type: 'string', enum: ['code+card', 'code-only', 'card-only', 'readme-only'] },
           klass: { type: 'string', description: 'the card Class line, if known' },
           reviewerLens: { type: 'string', description: 'the card Reviewer lens, if present' },
@@ -175,7 +175,9 @@ const PERSONAS = {
 
 // ───────────────────────── RULES (inlined so agents obey even without skills) ─────────────────────────
 const EVIDENCE_RULES = `
-Follow the fde-analysis skill (evidence rules): cite file:line for every claim (no citation => drop it); tag category
+Follow the fde-analysis skill (evidence rules): cite the code for every claim (no citation => drop it), preferring
+\`file:symbol\` (a stable function/class/enum/route anchor); numeric lineStart/lineEnd in the finding schema are a
+best-effort locator (regenerated each run, so they don't rot); tag category
 (fact|inference|recommendation) and evidence_type (code|comment-only — comment-only = GHOST, never assert as real);
 confidence 0.0-1.0 (facts=1.0); read the ENTIRE assigned file before any finding (no skimming/guessing).`;
 
@@ -188,7 +190,8 @@ const cfg = await agent(
    \`personas/README.md\` (that one is just the index). If \`personas/\` does not exist, fall back to
    \`.claude/personas.md\`, then \`CLAUDE.md\`.
    Each canonical card (written by /fde-personas) has: a "# Persona: <name>" title, a "Class:" line, an
-   "## Evidence (file:line)" section (CODE citations), and a "## Reviewer lens" section. For each persona return:
+   "## Evidence (file:symbol)" section (CODE citations; older cards may title it "## Evidence (file:line)"),
+   and a "## Reviewer lens" section. For each persona return:
    name, klass (the Class line), the code file:line evidence it cites, its reviewerLens text, and a confidence.
    Also return any domain glossary. If none exist, return empty personas. Return only what the files state —
    invent nothing.`,

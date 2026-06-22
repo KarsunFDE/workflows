@@ -12,20 +12,29 @@
 
 Default Claude Code paths, so it works with no install step. Invoked as `/fde-analyze`.
 
+Two repos in play. The **engine** is copied into YOUR project repo and runs there. The shared
+**KarsunFDE/workflows** repo is the versioned source of the engine + central storage of each
+project's persona cards / sample outputs (its per-project subfolders are NOT an auto-discovery location).
+
 ```
-contract-payment-flow/
-├── CLAUDE.md                                  # THIS repo's personas (CO, etc.) — per-repo, evidence-grounded
+<your project repo root>/                       # where the engine RUNS
 ├── .claude/
 │   ├── workflows/
-│   │   ├── fde-personas.js                     # persona bootstrap (BUILT) -> /fde-personas
-│   │   ├── fde-analyze.js                      # analysis arm      (BUILT) -> /fde-analyze
-│   │   └── fde-plan.js                         # planning arm      (BUILT) -> /fde-plan <target>
-│   ├── skills/
-│   │   └── fde-analysis/SKILL.md               # evidence + clustering + schema + coverage
-├── personas/                                   # THIS repo's persona cards (one .md each + README index; written by /fde-personas)
-├── CLAUDE.md                                   # lean pointer only (~15 lines) — NOT the personas
-├── combined_workflow.md                        # THIS design doc (master)
-└── workflow.md                                 # prior snapshot (history)
+│   │   ├── fde-personas.js                      # persona bootstrap (BUILT) -> /fde-personas
+│   │   ├── fde-analyze.js                       # analysis arm      (BUILT) -> /fde-analyze
+│   │   ├── fde-plan.js                          # planning arm      (BUILT) -> /fde-plan <target>
+│   │   └── fde-analyze.v2.bak                   # rollback (also reachable live via {full:true})
+│   └── skills/
+│       └── fde-analysis/SKILL.md                # evidence + clustering + schema + coverage
+├── personas/                                    # CANONICAL persona location: one <slug>.md per persona
+│                                                #   + personas/README.md index (written by /fde-personas)
+└── CLAUDE.md                                    # lean pointer only (~15 lines), NOT the personas
+                                                 #   (read only as a fallback if personas/ is absent)
+
+KarsunFDE/workflows/  (shared engine repo)       # design docs + central per-project storage
+├── combined_workflow.md   fde-engine-SETUP.md   how-this-workflow-was-built.md
+├── README.md              fde-analyze-sample-report.html   current-plan.md
+└── contract-payment-flow/ grants-portal-modern/ foia-response-pipeline/   # per-project storage (personas/, sample outputs)
 ```
 
 Rules of placement (per Claude Code best practices):
@@ -59,6 +68,12 @@ Skill (1): `fde-analysis` (evidence discipline + capability clustering + schema 
 ---
 
 ## 1. Goal
+
+> ⚠️ **NEUTRALITY STATUS (read first).** The intended goal is a **target-neutral** modernization engine
+> (the target is a CLIENT decision, not baked in). **As built today the engine is frontend-migration-only:**
+> `/fde-analyze`'s SCOPE phase + report and all of `/fde-plan` presuppose Angular → React/Next. The
+> target-neutral assessment that would make this true is **§17 (v4) — PLANNED, NOT built.** Sections 1–11
+> below describe the frontend-framed engine as it exists; §17 is the fix. Do not read §1–§11 as already-neutral.
 
 Recreate an FDE-style modernization process (Galent's "Galent Workflows") as a **Claude Code dynamic
 workflow** — a JavaScript script that orchestrates subagents, saved to `.claude/workflows/<name>.js`,
@@ -153,7 +168,9 @@ Primary objective questions the report must answer (prompt lines 32-43): what it
 Reads whole repo. Writes nothing to repo. Output = one markdown report.
 
 ```
-Ph0  LOAD          loader agent reads ./fde.config.* (personas/context/doc paths) -> cfg   [see §12]
+Ph0  LOAD          loader agent reads this repo's persona cards (personas/*.md; fallback
+                   .claude/personas.md -> CLAUDE.md) -> known personas + reviewer lenses
+                   [AS BUILT. The ./fde.config.* loader of §12 is PLANNED, NOT implemented — nothing reads it yet.]
 
 Ph1  DISCOVER      filesystem walk, whole repo, every file by ext -> work-list
                    (NOT import-graph -- avoids invisible domains)
@@ -269,6 +286,12 @@ Satisfies the prompt's "present, don't choose" rule AND the workflow mechanic.
 
 ## 12. Cross-repo sharing — engine vs config  *(NEW — owed §12)*
 
+> ⚠️ **STATUS: the `fde.config.*` loader below is PLANNED, NOT implemented.** No script reads `fde.config.*`
+> today. What IS built: the engine is generic and each repo supplies its own context via discovered
+> `personas/*.md` cards (Ph0 reads those). Target is passed as a `/fde-plan` arg, not a config file. The
+> config-file mechanism is the design intent for richer per-repo context (internal-analysis path, domain notes);
+> until built, ignore references to `fde.config.*` as a working feature.
+
 Share one **engine**; each repo supplies its own **config**. Script stays byte-identical across groups.
 
 ```
@@ -303,11 +326,11 @@ ENGINE (generic, same everywhere)        CONFIG (per-repo, group-owned)
 | All subagents → sonnet | ✅ DONE — model-tags == agent-calls in all 3 (11/11, 3/3, 8/8) |
 | MERGE truncation fix | ✅ DONE — batched clustering + merge pass (no silent `slice()` drop) |
 | Scope knob (`pathPrefix`/`maxFiles`) | ✅ DONE — bounds cost for test runs; truncation logged + in report |
-| 5 analysis skills | ✅ BUILT — `.claude/skills/*` |
-| CLAUDE.md (6 personas) | ✅ generated by `/fde-personas` (CO/COR/sys_admin/OIG/DCAA/Vendor); backup `CLAUDE.md.bak` |
+| Analysis skill | ✅ BUILT — `.claude/skills/fde-analysis` (merged 5→1; `persona-synthesis` retired) |
+| Persona cards | ✅ `/fde-personas` writes canonical `personas/*.md` (one per persona) + `personas/README.md` index — superseded the old single-file CLAUDE.md personas (PR #5) |
 | Adopt 12-phase canonical list | ✅ (§7) |
 | Personas discovered-vs-reviewer | ✅ resolved (§9) |
-| Personas location | ✅ per-repo CLAUDE.md (§0, §9) |
+| Personas location | ✅ per-repo `personas/*.md` cards (canonical); loader fallback `.claude/personas.md` -> `CLAUDE.md` (§0, §9) |
 | Interactive-planning split | ✅ resolved (§11) |
 | Confidence + Facts/Inferences/Recs | ✅ added (§6, §8) |
 | Cross-repo engine/config | ✅ documented (§12) |
@@ -368,7 +391,7 @@ always check the reliability/coverage section, not just that a report came out.
 .claude/skills/       (fde-analysis)
 ```
 **Do NOT ship:** `personas/`, `CLAUDE.md`, `*.bak` (your repo's personas). `combined_workflow.md` +
-`fde-engine-SETUP.md` + `fde-engine-WHATS-NEW.md` ARE included in the zip as reference.
+`fde-engine-SETUP.md` + `how-this-workflow-was-built.md` ARE included in the zip as reference.
 
 **Their setup (no building — copy + run):**
 ```
@@ -425,11 +448,11 @@ Concrete changes:
 - Both report agents now **write a local `.md`** (`fde-analysis-report.md`, `fde-modernization-plan.md`) before returning.
 
 **Token optimizations done this session:** sonnet everywhere · lean batch read default (was per-file dual) ·
-MERGE batched (no silent truncation) · web OFF by default in `/fde-plan` · personas moved CLAUDE.md → `.claude/personas.md`
-(on-demand, per best practices) · CLAUDE.md slimmed to a pointer · skills 5→2 · descriptions tightened.
+MERGE batched (no silent truncation) · web OFF by default in `/fde-plan` · personas now canonical `personas/*.md`
+cards (loader fallback `.claude/personas.md` → `CLAUDE.md`) · CLAUDE.md slimmed to a pointer · skills 5→1 (`persona-synthesis` retired) · descriptions tightened.
 Projected `/fde-analyze` full-repo ~700k–1M tokens (Pro 5h window ≈ a couple million, shared) → **scope on Pro**.
 
-**Deliverable:** `fde-engine.zip` (engine + WHATS-NEW + SETUP + design doc; excludes personas/CLAUDE/bak).
+**Deliverable:** `fde-engine.zip` (engine + SETUP + how-this-workflow-was-built + design doc; excludes personas/CLAUDE/bak).
 Sample output: `fde-analyze-sample-report.html`.
 
 **Open / next:**
