@@ -51,7 +51,7 @@ Three workflows + one skill make up the engine. All BUILT.
 
 | Command | What it does | When to call | Writes? |
 |---|---|---|---|
-| `/fde-personas` | Discovers stakeholder personas from the repo (roles, routes, regulation refs, audit actors, README), synthesizes an evidence-grounded card + reviewer lens for each, and **writes one canonical card per persona to `personas/<slug>.md`** (+ a `personas/README.md` index; preserves anything already curated). | **First**, once per repo (or when stakeholders change). A new group runs this so they never hand-author personas. | `personas/*.md` |
+| `/fde-personas` | Discovers stakeholder personas from the repo (roles, routes, regulation refs, audit actors, README), synthesizes an evidence-grounded card + reviewer lens for each, and **writes one canonical card per persona to `personas/<slug>.md`** (+ a `personas/README.md` index; preserves anything already curated). **INCREMENTAL** — an Inventory phase reuses unchanged canonical cards (git staleness, symbol-range) and only (re)builds new/stale personas, so re-runs after code changes are cheap. | **First**, once per repo; then after code/stakeholder changes (cheap re-run). A new group runs this so they never hand-author personas. | `personas/*.md` |
 | `/fde-analyze` | **v3 default (token-frugal):** structural MAP pass (local CLI `repomix --compress`/`ctags`/`ripgrep` — near-zero AI tokens) gives 100% whole-repo coverage + surfaces dup/ghost/missing-schema cheaply → tier files → **deep-read only in-scope+boundary** → cluster → schema map → personas → **report**. Flags: `{full:true}` deep-reads every file (old v2), `{thorough:true}` blind dual-analyst, `{pathPrefix,maxFiles}` scope a test. Ends presenting options (no auto-pick). | **Second**, before any modernization. Run many times. | nothing (report to session) |
 | `/fde-plan <target>` | Takes a chosen target (`react`\|`nextjs`) + the analysis. Research Angular→target mapping → user stories → **persona review (refute-mode)** → spec-level migration plan + roadmap/risk/rollback/test → critic gate → **ModernizationPlan**. Optional prototype into a sandbox dir. | **Third**, after a human reads the analysis and picks a target. `args: {target, analysisReport?, sandboxDir?}`. | report only (prototype only if `sandboxDir` given) |
 
@@ -320,7 +320,7 @@ ENGINE (generic, same everywhere)        CONFIG (per-repo, group-owned)
 | Item | Status |
 |---|---|
 | Analysis arm spec | ✅ locked (§8) |
-| `/fde-personas` script | ✅ BUILT + ✅ **SMOKE-TESTED** (sonnet, 8 agents, ~370k tok, ~11min; wrote 6 personas) |
+| `/fde-personas` script | ✅ BUILT + ✅ **SMOKE-TESTED** (sonnet, 8 agents, ~370k tok, ~11min; wrote 6 personas). ⏳ **incremental-rerun optimization** (Inventory/git-staleness reuse · cited-only synth · per-persona write) added on branch `persona-optimization` — syntax-clean, NOT runtime-tested. |
 | `/fde-analyze` script | ✅ BUILT — sonnet — ⏳ smoke-test launched (scoped: 1 module, maxFiles 8) |
 | `/fde-plan` script | ✅ BUILT — sonnet — ⏳ smoke-test launched (`target:react`) |
 | All subagents → sonnet | ✅ DONE — model-tags == agent-calls in all 3 (11/11, 3/3, 8/8) |
@@ -439,7 +439,7 @@ Concrete changes:
 > Point a new window at THIS file (`combined_workflow.md`) first. Snapshot as of 2026-06-19.
 
 **Built + in `.claude/` (all sonnet, syntax-clean):**
-- `workflows/fde-personas.js` — discover personas → writes canonical `personas/*.md` cards + `personas/README.md` index. ✅ smoke-tested (earlier version wrote a single `.claude/personas.md`).
+- `workflows/fde-personas.js` — phases Inventory → Discover → Synthesize → Write → Index. Writes canonical `personas/*.md` cards + `personas/README.md` index. ✅ smoke-tested (earlier version wrote a single `.claude/personas.md`). ⏳ **incremental re-run** (reuse unchanged canonical cards via git symbol-range staleness; cited-only synth; per-persona write) on branch `persona-optimization` — not yet runtime-tested.
 - `workflows/fde-analyze.js` — **v3 default**: map (repomix→ctags→ripgrep) + tiered deep-read. ✅ smoke-tested
   (repomix tier, 100% coverage, 22% deep-read). Flags `{full,thorough,pathPrefix,maxFiles}`. v2 saved as
   `fde-analyze.v2.bak` + reachable via `{full:true}`.
@@ -450,6 +450,7 @@ Concrete changes:
 **Token optimizations done this session:** sonnet everywhere · lean batch read default (was per-file dual) ·
 MERGE batched (no silent truncation) · web OFF by default in `/fde-plan` · personas now canonical `personas/*.md`
 cards (loader fallback `.claude/personas.md` → `CLAUDE.md`) · CLAUDE.md slimmed to a pointer · skills 5→1 (`persona-synthesis` retired) · descriptions tightened.
+**`/fde-personas` incremental re-run (branch `persona-optimization`):** Inventory phase reuses canonical cards whose cited code is unchanged (git staleness, symbol-range via `git log -L`); synth re-reads only cited evidence not the whole repo; per-persona write removes the ~27.5K all-cards dump; metadata-only index. First-run cost ~same→modestly lower; re-run cost near-zero when little changed. Syntax-clean, not yet runtime-tested.
 Projected `/fde-analyze` full-repo ~700k–1M tokens (Pro 5h window ≈ a couple million, shared) → **scope on Pro**.
 
 **Deliverable:** `fde-engine.zip` (engine + SETUP + how-this-workflow-was-built + design doc; excludes personas/CLAUDE/bak).

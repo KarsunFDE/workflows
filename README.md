@@ -28,7 +28,8 @@ not from this one. This repo is the shared source of truth + central config stor
 
 ```
 1. Copy .claude/workflows + .claude/skills into your project repo's .claude/
-2. /fde-personas    → generates YOUR personas/*.md cards from YOUR code (run once)
+2. /fde-personas    → generates YOUR personas/*.md cards from YOUR code (run once, then re-run after code
+                       changes — re-runs are incremental: only personas whose cited code changed are rebuilt)
 3. /fde-analyze     → cited analysis report (start scoped: args {pathPrefix, maxFiles})
 4. /fde-plan react  → migration plan (or nextjs / other target)
 ```

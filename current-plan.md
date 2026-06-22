@@ -37,8 +37,10 @@ contract-payment-flow/  grants-portal-modern/  foia-response-pipeline/   ← per
 ```
 
 ## The three workflows (all sonnet, report-only, no app edits)
-- **`/fde-personas`** — discover stakeholders → write ONE canonical card per persona to `personas/<slug>.md`
-  + `personas/README.md` index. Self-contained (persona-synthesis skill retired). Run once per repo.
+- **`/fde-personas`** — INVENTORY existing cards (git staleness, symbol-range) → DISCOVER → SYNTHESIZE (re-read
+  only cited evidence) → WRITE (per-persona) → INDEX. Writes ONE canonical card per persona to `personas/<slug>.md`
+  + `personas/README.md` index. Self-contained (persona-synthesis skill retired). Run once per repo, then after
+  code changes — **incremental**: reuses unchanged canonical cards, only (re)builds new/stale ones.
 - **`/fde-analyze`** — token-frugal: structural MAP pass (`repomix --compress` → `ctags` → `ripgrep`, 100%
   coverage, near-zero AI tokens) → SCOPE-tier → deep-read ONLY in-scope+boundary (lean batches of 6; blind
   A/B + adjudicator if `{thorough:true}`) → MERGE (cluster/schema/personas) → REPORT (writes
@@ -139,6 +141,7 @@ and `{thorough}` (A+B+adjudicator per file). Scope knob is the right, implemente
    any (vector, target); add `mode: migrate|upgrade`. Smallest diff, biggest fidelity gain. Unblocks "don't assume React".
 2. **Traceability ID spine** — stable IDs in `/fde-analyze` (F-001…); downstream artifacts carry parent IDs;
    BA gate validates coverage. Build EARLY (retrofitting after fan-out is expensive).
+   **Consider building this AS a deterministic code graph — see KG-1 below; node IDs = the spine.**
 3. **Step 4** — code-snippet implementation specs: fan-out per work-unit → before/after snippet + contract,
    written to `./fde-spec/<unit>.md` (by reference, not report body); comprehension-validation gate before
    translation (SME sign-off); acceptance criteria per unit.
@@ -150,6 +153,36 @@ and `{thorough}` (A+B+adjudicator per file). Scope knob is the right, implemente
 ## Quick fixes (cheap, any time)
 - Log on bare-string args (C2) and on actual `.slice()` truncation (C4).
 - Implement or drop the `fde.config.*` loader (P5).
+
+---
+
+## Candidates under consideration (not committed)
+
+### KG-1 — deterministic code graph (knowledge graph), persisted + reused across runs
+**Status: candidate. Researched 2026-06-22 (official + arXiv sources).** Tie to roadmap item 2 (traceability spine) — build them together; a code graph IS the natural ID spine.
+
+**The two flavors — only one fits.**
+- ❌ **LLM-extracted semantic KG (GraphRAG-style)** — REJECTED for our budget. Indexing is an LLM call per chunk; "~75% of token budget spent before the first question" (PremAI), millions of tokens for a medium corpus (Microsoft: start small). That is the OPPOSITE of the v3 token-frugal goal, and LLM-extracted graphs "lack precision vs syntactic extraction" + hallucinate (arXiv 2601.08773). Our fan-out + MERGE/CLUSTER + adjudication already approximates the global-reasoning win.
+- ✅ **Deterministic code graph (AST/def-ref/call/import)** — the candidate. Built by a CLI (`scip-*`, `srctx`, `ctags --fields=+ne`, or tree-sitter) → **near-zero LLM tokens**, deterministic, reproducible. arXiv 2601.08773: AST-derived graphs are *preferable for codebase QA when cost + reliability matter*. We ALREADY build a flat proto-version (Ph1 MAP); a graph adds the **edges** the flat map lacks.
+
+**Why it helps (the real payoff — precision + reuse, NOT big token savings):**
+- **Subsequent-run reuse (the main motivation):** persist the graph to **`./fde-graph.json`**; `/fde-analyze` and `/fde-plan` both read it. A re-run re-indexes only changed files (git-diff) → cheaper agent analysis on every run after the first. This is where a KG earns its keep — without cross-arm/cross-run reuse it's just rebuilt-and-discarded and the value is lost.
+- **Exact boundary/scope** (def→ref edges crossing the scope cut) instead of agent-guessed → deep-read a smaller exact set → the one real (marginal) token win.
+- **Precise dedup/ghost** (identical call-subgraphs / zero in-edges) vs today's fuzzy shape-match.
+- **Migration ordering** for `/fde-plan` — strangler-fig order falls out of a topological sort of the dep graph.
+- **Traceability spine for free** — graph node IDs = the F-001 spine (roadmap item 2); downstream artifacts carry parent IDs; coverage gate validates against graph nodes.
+
+**Implementation sketch (fits the dynamic-workflow model):**
+1. **Ph1.5 GRAPH** (after MAP, before SCOPE): agent runs the indexer via CLI → emits nodes+edges to `./fde-graph.json` (re-index only git-changed files when the file exists).
+2. **Query in-script as a plain JS object** — reachability + topo-sort over the JSON in the script body. NO graph DB needed at our scale (allowed: pure JS).
+3. **SCOPE uses graph reachability:** in-scope = frontend subtree; boundary = nodes with edges crossing the cut; out-of-scope = unreachable.
+4. **Persist + reuse:** `/fde-plan` reads the same `./fde-graph.json` for ordering + parent IDs.
+
+**Cons / costs:** per-language indexer unevenness (SCIP needs TS/Py/Java/Go indexers; degrades to `ctags`/`ripgrep` like MAP already does) · syntactic-only (no business-meaning edges — LLM CLUSTER still needed) · misses dynamic/runtime edges (DI, reflection, string-keyed routes — boundary tier mitigates) · new persisted artifact to version per-repo + added orchestration.
+
+**Cheapest first step (do this before committing to SCIP/persistence):** enrich the EXISTING MAP `structuralFindings` with `ctags` def-ref edges — captures ~70% of the boundary-precision win, near-zero new machinery, no graph DB, no new artifact. Validate the gain, then decide on the persisted-graph build.
+
+Sources: Microsoft GraphRAG indexing overview · arXiv 2601.08773 (AST-derived vs LLM-extracted KG for code) · Sourcegraph SCIP · srctx (tree-sitter + LSIF/SCIP) · arXiv 2603.27277 (tree-sitter KG for LLM code exploration).
 
 ---
 
@@ -173,3 +206,12 @@ and `{thorough}` (A+B+adjudicator per file). Scope knob is the right, implemente
   (file:symbol)` + hard rule + discover/synth prompts + schema descs), fde-analyze.js (EVIDENCE_RULES + Ph0
   loader header match + personas schema). Transient per-run numeric lineStart/lineEnd kept (regenerated each
   run, don't rot). Existing grants/foia cards still title "(file:line)" — re-run /fde-personas to re-anchor.
+- 2026-06-22: added candidate KG-1 — deterministic code graph (persisted `./fde-graph.json`, reused across runs),
+  tied to roadmap item 2. Researched: GraphRAG-style LLM-KG rejected (token blow-up); AST/def-ref graph is the
+  fit. Cheapest first step = enrich MAP with ctags def-ref edges. Not committed — candidate only.
+- 2026-06-22: `/fde-personas` token optimization (branch `persona-optimization`, commit ea887ea). Re-runs were
+  rebuilding all personas from scratch (~76% of a window). Added INVENTORY phase: reuse canonical cards whose
+  cited code is unchanged (git staleness at symbol-range granularity via `git log -L`); synth re-reads ONLY
+  cited evidence (not whole repo); per-persona WRITE replaces the ~27.5K all-cards dump; metadata-only INDEX.
+  Legacy/other-skill cards detected (`canonical` flag) + cleanly regenerated; re-slugged dups flagged, not
+  auto-deleted. NOT runtime-tested yet (syntax-clean). Engine file synced into contract-payment-flow.
