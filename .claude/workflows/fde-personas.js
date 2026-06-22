@@ -1,15 +1,25 @@
 export const meta = {
   name: 'fde-personas',
-  description: 'Discover stakeholder personas from the repo (role/permission keys, routes, DB entities, audit actors, regulation refs, README) and write ONE evidence-cited card per persona to personas/<slug>.md in a single canonical schema (summary · can/cannot do · constraints · impact · code evidence · reviewer lens · optional regulatory anchors) + a personas/README.md index. Roles, not people — no named accounts. Run once per repo before /fde-analyze and /fde-plan.',
-  whenToUse: 'First-time setup in a new repo, or when stakeholders change. A new group runs this so they never hand-author personas — the workflow infers them from their own code in ONE consistent format. /fde-analyze and /fde-plan then consume personas/*.md (reviewer lens + code evidence).',
+  description: 'Discover stakeholder personas from the repo (role/permission keys, routes, DB entities, audit actors, regulation refs, README) and write ONE evidence-cited card per persona to personas/<slug>.md in a single canonical schema (summary · can/cannot do · constraints · impact · code evidence · reviewer lens · optional regulatory anchors) + a personas/README.md index. Roles, not people — no named accounts. INCREMENTAL: re-runs only re-synthesize personas whose cited code changed; unchanged cards are reused untouched. Run once per repo, then after stakeholder/code changes.',
+  whenToUse: 'First-time setup in a new repo, or after code changes. Safe to run repeatedly: an Inventory pass reuses cards whose cited files are unchanged (git-based) and only re-synthesizes new or stale personas, so repeat runs are cheap. /fde-analyze and /fde-plan then consume personas/*.md (reviewer lens + code evidence).',
   phases: [
+    { title: 'Inventory' },
     { title: 'Discover' },
     { title: 'Synthesize' },
     { title: 'Write' },
+    { title: 'Index' },
   ],
 };
 
 const MODEL = 'sonnet'; // all subagents run on sonnet
+
+// kebab-case a role name for the card filename stem. Pure JS (no Date/random).
+function kebab(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 // ───────────────────────── CANONICAL CARD FORMAT ─────────────────────────
 // One fixed schema for every persona across every project — removes cross-group drift.
@@ -67,6 +77,31 @@ HARD RULES:
 - Do NOT add sections like "Cares About", "HITL Gate", or "Access Level". Use the fixed set above only.
 - Cite file:line for every capability/constraint claim. No guessing, no uncited authority.`;
 
+// Existing-card inventory — drives the incremental skip (only re-synth new/stale personas).
+const INVENTORY = {
+  type: 'object',
+  required: ['existing'],
+  properties: {
+    existing: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['slug', 'name', 'stale', 'canonical'],
+        properties: {
+          slug: { type: 'string', description: 'ACTUAL filename stem on disk of personas/<slug>.md (may differ from kebab(name) for legacy/other-skill cards)' },
+          name: { type: 'string', description: 'role name from the card H1' },
+          roleId: { type: 'string', description: 'Role id line value if present, else empty' },
+          klass: { type: 'string', description: 'Class line value if present, else empty' },
+          authority: { type: 'string', description: 'one-line authority summary for the index (derive from Summary if no index line)' },
+          citedFiles: { type: 'array', items: { type: 'string' }, description: 'distinct file paths cited under the Evidence section (empty if no recognizable evidence section)' },
+          canonical: { type: 'boolean', description: 'true ONLY if the card matches THIS engine schema: H1 "# Persona:", and the section set Summary / What they can do / What they cannot do / Constraints / Impact / Pain points / Evidence (file:symbol) / Reviewer lens. A card from a different persona skill or with different/extra sections is NOT canonical.' },
+          stale: { type: 'boolean', description: 'true if any cited file changed (git) since the card was last committed, OR has uncommitted changes, OR staleness could not be determined' },
+        },
+      },
+    },
+  },
+};
+
 const CANDIDATES = {
   type: 'object',
   required: ['personas'],
@@ -104,7 +139,51 @@ const PERSONA_CARD = {
   },
 };
 
-// Ph1 DISCOVER — infer candidate personas from code + docs. Evidence-cited, no guessing.
+// ─── Ph0 INVENTORY — what already exists + what is stale (drives incremental skip) ───
+// Reuse any card whose cited code is unchanged; only new/stale personas get re-synthesized.
+phase('Inventory');
+const inv = await agent(
+  `Inventory the persona cards already in this repo so a re-run can skip unchanged ones.
+   If a top-level \`personas/\` directory does not exist, return {"existing": []} and stop.
+   Otherwise, for EACH \`personas/<slug>.md\` (ignore README.md):
+   - record the ACTUAL filename stem as \`slug\` (it may NOT match the role name — legacy/other-skill cards);
+   - read its H1 role name, the Role id / Class lines (if present), and a one-line authority
+     (use the index authority if present, else condense the Summary);
+   - set \`canonical\`: true ONLY if the card already matches THIS engine's schema (see required-field
+     description). A card produced by a different persona skill, or with missing/extra/renamed sections, is
+     canonical=false — it will be cleanly regenerated, not merged.
+   - parse the "Evidence" section and collect the DISTINCT file paths it cites (strip the :symbol/:line suffix);
+     if there is no recognizable evidence section, return citedFiles=[] (it will be treated as stale);
+   - determine staleness with git, at SYMBOL granularity (an edit elsewhere in a big cited file must NOT mark
+     the card stale). First get the card's own last-commit time: \`git log -1 --format=%ct -- personas/<slug>.md\`.
+     Then for EACH evidence citation:
+       * If it cites a symbol (\`file:symbolName\`), locate that symbol's current line range in the file and run
+         \`git log -L <start>,<end>:<file> -1 --format=%ct\` — the last commit that touched THOSE lines. Also
+         check uncommitted edits to that range: \`git diff -U0 -- <file>\` and see if any hunk overlaps the range.
+       * If it cites a bare \`file:line\` or whole file (no resolvable symbol), fall back to file granularity:
+         \`git log -1 --format=%ct -- <file>\` and \`git status --porcelain -- <file>\`.
+     The card is STALE if, for ANY citation, the symbol-range (or file, on fallback) was committed MORE RECENTLY
+     than the card, OR has an overlapping uncommitted hunk, OR you cannot resolve the range / git history
+     (symbol not found, file moved/deleted, no history) — when in doubt, mark stale=true (fail toward re-synthesis).
+   Return the existing[] array. Roles, not people.`,
+  { label: 'inventory', phase: 'Inventory', schema: INVENTORY, agentType: 'Explore', model: MODEL }
+);
+const existing = (inv && inv.existing) || [];
+log(`Inventory: ${existing.length} existing card(s); ${existing.filter((e) => e.stale).length} stale, ${existing.filter((e) => !e.canonical).length} non-canonical.`);
+
+// Match a discovered persona to an existing card by canonical name OR its on-disk stem (handles
+// legacy/other-skill files whose filename != kebab(name)). One existing card matches at most once.
+const matched = new Set();
+function findExisting(name) {
+  const k = kebab(name);
+  for (const e of existing) {
+    if (matched.has(e)) continue;
+    if (kebab(e.name) === k || (e.slug || '') === k) return e;
+  }
+  return null;
+}
+
+// ─── Ph1 DISCOVER — infer candidate personas from code + docs. Evidence-cited, no guessing. ───
 phase('Discover');
 const candidates = await agent(
   `Discover the human (and notable non-human/service) stakeholder personas of THIS system by reading the
@@ -115,53 +194,141 @@ const candidates = await agent(
    enum/route name; raw line only where no symbol applies), tag evidence_type (code beats comment/readme),
    and score confidence. Expand abbreviations to full role names (e.g. CO -> Contracting
    Officer) ONLY when evidence or the README supports it. ROLES, NOT PEOPLE — ignore named demo accounts.
-   Do NOT invent personas with no evidence.`,
+   Do NOT invent personas with no evidence.
+   Report EVERY persona you find (this is the internal proposal pass) — including ones that may already have a
+   card. The orchestrator decides what to re-verify.${existing.length ? ` For context, cards already exist for: ${existing.map((e) => e.name).join(', ')}.` : ''}`,
   { label: 'discover-personas', phase: 'Discover', schema: CANDIDATES, agentType: 'Explore', model: MODEL }
 );
 const people = (candidates && candidates.personas) || [];
 log(`Discovered ${people.length} candidate persona(s): ${people.map((p) => p.name).join(', ') || 'none'}.`);
 
-// Ph2 SYNTHESIZE — one canonical card per candidate (parallel). Self-contained: no persona-synthesis skill.
+// ─── Decide work: (re)synthesize new + stale + non-canonical; reuse unchanged canonical cards untouched. ───
+// A card is reused ONLY if it is canonical AND unchanged. Legacy/other-skill cards (canonical=false) are
+// always regenerated into the canonical schema. The canonical slug is always kebab(name); when an existing
+// file used a different stem, we flag it as a duplicate to remove (we never auto-delete).
+const work = [];
+const reused = [];
+const dupes = []; // {role, oldFile, canonicalFile} — legacy stems to remove by hand
+function planExisting(ex, p) {
+  const slug = kebab(ex.name);
+  const legacyStem = ex.slug && ex.slug !== slug ? ex.slug : '';
+  if (ex.canonical && !ex.stale && !legacyStem) {
+    reused.push({ ...ex, slug });
+    return;
+  }
+  if (legacyStem) dupes.push({ role: ex.name, oldFile: `personas/${ex.slug}.md`, canonicalFile: `personas/${slug}.md` });
+  work.push({
+    name: ex.name,
+    slug,
+    evidence: (p && p.evidence) || ex.citedFiles || [],
+    signals: (p && p.signals) || '',
+    confidence: (p && p.confidence) != null ? p.confidence : 0.5,
+    existing: true,
+    canonical: !!ex.canonical,
+  });
+}
+for (const p of people) {
+  const slug = kebab(p.name);
+  const ex = findExisting(p.name);
+  if (ex) {
+    matched.add(ex);
+    planExisting(ex, p);
+  } else {
+    work.push({ ...p, slug, existing: false, canonical: true });
+  }
+}
+// Existing personas the discover pass did NOT re-find: keep canonical+fresh ones; regenerate the rest.
+for (const ex of existing) {
+  if (matched.has(ex)) continue;
+  matched.add(ex);
+  planExisting(ex, null);
+}
+log(`Reusing ${reused.length} unchanged card(s); (re)synthesizing ${work.length}.${dupes.length ? ` ${dupes.length} legacy file(s) to remove by hand.` : ''}`);
+
+// ─── Ph2 SYNTHESIZE + Ph3 WRITE — pipeline, one persona at a time, no central dump. ───
+// (A) Each persona's card is written by its OWN write agent (~2KB input), never a 400KB batch.
+// (C) Synthesis re-reads ONLY the cited evidence files (the external fact-check of Discover's claims),
+//     instead of re-walking the whole repo per persona.
 phase('Synthesize');
-const synthesized = (
-  await parallel(
-    people.map((p) => () =>
+const written = (
+  await pipeline(
+    work,
+    // Stage 1 — synthesize the canonical card (external check of Discover's internal proposal).
+    (p) =>
       agent(
-        `Build the canonical persona CARD for "${p.name}" for THIS repository. Re-read the cited code as needed
-         to ground every claim — do not rely only on the signals below.
-         Candidate evidence: ${JSON.stringify(p.evidence)}. Signals: ${p.signals || ''}. Confidence: ${p.confidence}.
+        `Build the canonical persona CARD for "${p.name}" for THIS repository.
+         You are the EXTERNAL fact-check of an internal discovery pass. Re-read ONLY the cited evidence below
+         (and files those directly reference) to GROUND or CORRECT every claim — do NOT re-scan the whole repo;
+         Discover already located these. If the code disagrees with a signal, REFUTE it and write what the code
+         actually supports; adjust the confidence accordingly.
+         Candidate evidence: ${JSON.stringify(p.evidence)}. Signals: ${p.signals || ''}. Proposed confidence: ${p.confidence}.
          Produce the full card markdown, a kebab-case slug for the filename, the Role id / Class / one-line
          authority for the index, the code evidence list (cite \`file:symbol\` — stable function/class/enum/
          route names; raw line only where no symbol applies), and the Reviewer lens text.
          ${CARD_SPEC}`,
         { label: `synth:${p.name}`, phase: 'Synthesize', schema: PERSONA_CARD, model: MODEL }
-      )
-    )
+      ),
+    // Stage 2 — persist THIS one card (preserve any hand-curated content already on disk).
+    (card, p) => {
+      if (!card) return null;
+      const slug = kebab(card.name || p.name) || card.slug || p.slug;
+      // Merge-preserve ONLY when the existing file is our canonical schema; otherwise clean replace
+      // (a legacy/other-skill card must not have its non-canonical sections dragged in).
+      const writeRule =
+        p.existing && p.canonical
+          ? `- \`personas/${slug}.md\` already exists in THIS engine's canonical format: READ it first and
+           PRESERVE hand-curated content (manual edits, extra evidence, a tuned reviewer lens). Reconcile —
+           keep the richer card and the canonical section set. Never delete curated content.`
+          : `- If \`personas/${slug}.md\` exists, OVERWRITE it cleanly with the canonical card below. Do NOT try
+           to merge or carry over any prior content (it is legacy / a different schema).`;
+      return agent(
+        `Write this single persona card to \`personas/<slug>.md\` (create the \`personas/\` dir if absent).
+         slug: "${slug}"
+         ${writeRule}
+         - Enforce the canonical schema: roles not people (strip any named accounts), Evidence = code file:symbol
+           only, no ad-hoc sections.
+         Card to write:
+         ${card.markdown}
+         Return one line: "<slug>: added|merged|replaced".`,
+        { label: `write:${slug}`, phase: 'Write', model: MODEL }
+      ).then(() => ({
+        slug,
+        name: card.name,
+        roleId: card.roleId || '',
+        klass: card.klass || '',
+        authority: card.authority || '',
+        confidence: card.confidence,
+      }));
+    }
   )
 ).filter(Boolean);
-log(`Synthesized ${synthesized.length} canonical persona card(s).`);
+log(`Wrote ${written.length} card(s); reused ${reused.length}.`);
 
-// Ph3 WRITE — one file per persona under personas/, plus a personas/README.md index.
-// Preserve any hand-curated card already present; never clobber manual edits.
-phase('Write');
+// ─── Ph4 INDEX — regenerate personas/README.md from metadata only (no card bodies). ───
+phase('Index');
+const indexRows = [
+  ...reused.map((e) => ({ slug: e.slug || kebab(e.name), name: e.name, roleId: e.roleId || '', klass: e.klass || '', authority: e.authority || '' })),
+  ...written.map((w) => ({ slug: w.slug, name: w.name, roleId: w.roleId, klass: w.klass, authority: w.authority })),
+];
 const result = await agent(
-  `Write this repository's persona cards into a top-level \`personas/\` directory (create it if absent).
-   For EACH persona below, write its \`markdown\` to \`personas/<slug>.md\`:
-   - If \`personas/<slug>.md\` already exists, READ it first. PRESERVE hand-curated content (manual edits,
-     extra evidence, tuned reviewer lens). Reconcile rather than blindly overwrite; keep the richer card and
-     the canonical section set. Never delete a curated card.
-   - Enforce the canonical schema: roles not people (strip any named accounts), Evidence = code file:line only,
-     no ad-hoc sections.
-   Then write/update \`personas/README.md\` as an index: a short intro ("roles, not people; each card is
-   code-cited; cards feed /fde-analyze corroboration and /fde-plan review") followed by a table
-   | Persona (link to ./<slug>.md) | Role id | Class | One-line authority |. Group rows sensibly if there are
-   clear classes (active/legacy/cross-cutting), otherwise one flat table.
-   After writing, return a short summary: which cards were added, merged, or left untouched, with each
-   confidence; flag any persona whose evidence is readme/comment-only as a ghost to verify.
-   Personas to write:
-   ${JSON.stringify(synthesized).slice(0, 400000)}`,
-  { label: 'write-personas', phase: 'Write', model: MODEL }
+  `Write/update \`personas/README.md\` as the persona index. Do NOT touch the individual card files.
+   Intro: "roles, not people; each card is code-cited; cards feed /fde-analyze corroboration and /fde-plan review".
+   Then a table | Persona (link to ./<slug>.md) | Role id | Class | One-line authority |, one row per persona
+   below. Group rows sensibly if there are clear classes (active/legacy/cross-cutting), else one flat table.
+   After writing, return a short summary: counts of cards reused-unchanged vs (re)written this run, and flag any
+   persona whose evidence looks readme/comment-only as a ghost to verify.
+   Personas (metadata only — the card files are already written):
+   ${JSON.stringify(indexRows)}`,
+  { label: 'index', phase: 'Index', model: MODEL }
 );
 
-log('personas/*.md cards + personas/README.md index written. Review the evidence, trim any ghosts, then run /fde-analyze.');
-return result;
+if (dupes.length) {
+  log(`⚠ ${dupes.length} legacy persona file(s) re-slugged to canonical — REMOVE the old file(s) by hand:`);
+  for (const d of dupes) log(`   ${d.role}: delete ${d.oldFile} (now ${d.canonicalFile})`);
+}
+log(`personas/*.md + README.md updated. ${written.length} (re)written, ${reused.length} reused unchanged. Review evidence, trim ghosts, then run /fde-analyze.`);
+
+const dupeNote = dupes.length
+  ? `\n\n⚠ Legacy duplicates to delete by hand (re-slugged to canonical, NOT auto-deleted):\n${dupes.map((d) => `- ${d.role}: ${d.oldFile} → now ${d.canonicalFile}`).join('\n')}`
+  : '';
+return `${result}${dupeNote}`;
