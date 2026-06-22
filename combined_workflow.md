@@ -175,10 +175,13 @@ Ph0  LOAD          loader agent reads this repo's persona cards (personas/*.md; 
 Ph1  DISCOVER      filesystem walk, whole repo, every file by ext -> work-list
                    (NOT import-graph -- avoids invisible domains)
 
-Ph2  READ          pipeline, 1 agent per file, reads FULL, no guessing
-   default (no internal analysis):  Analyst A || Analyst B  -- blind, IDENTICAL lens,
-                                    both capture business rules/constraints
+Ph2  READ          reads FULL, no guessing
+   default (token-frugal):          lean batches (<=READ_BATCH files/agent), single pass
+   {thorough:true} (no internal):   Analyst A || Analyst B  -- blind, IDENTICAL lens, per file,
+                                    both capture business rules/constraints, then adjudicator
    if internal.md passed:           Claude external || internal doc
+   NOTE the blind A/B dual-analyst (the bias-mitigation mechanism) is the {thorough} TIER, NOT the
+        default. Default trades the second opinion for tokens; run {thorough} for corroborated findings.
    extraction checklist (prompt 97-141): languages, frameworks, services, modules, APIs,
      controllers, routes, DTOs, repositories, models, event handlers, scheduled/batch jobs,
      shared libs, auth(n/z), integrations, queues, workers
@@ -261,13 +264,17 @@ Research      web-search: Angular feature -> React/Next equivalent, breaking cha
 User stories  evidence-backed (prompt 401-419): As a [persona] / I want / So that + acceptance + evidence + confidence
 Persona review discovered stakeholder lenses (e.g. CO/COR/OIG) review what must not regress + business-purpose Qs;
               BA synthesis (forced schema: business_purpose, end_user, end_user_value, play_type: solution|sales)
+              TIERS (as built): default = ONE agent reviews through all lenses (lean); {rigorous:true} = ONE
+              independent critic PER lens (blind) + a verdict vote (count of lenses flagging regression-risk).
 Spec          ✅ SPEC-LEVEL in report: target architecture, migration roadmap, dependency/risk/effort,
               data-migration, validation, rollback, testing, deployment, operational-readiness (prompt 654-678);
               per-component mapping (e.g. ContractForm.component.ts -> ContractForm.tsx, prop/state contracts).
               NO full code in report body. Illustrative before/after diffs only for a few key components.
 Prototype     ✅ real React/Next prototype code emitted into ISOLATED SANDBOX only  [location ⏳],
               referenced from the report by path. Never edits the Angular app.
-Critic gate   one critic per discovered stakeholder lens, refute-mode; majority vote; gaps loop back (bounded)
+Critic gate   default = ONE adversarial critic pass over the finished spec (gaps reported in the plan).
+              {rigorous:true} = the gap-loop ACTUALLY loops: re-spec while the critic still finds gaps, bounded
+              by MAX_GAP_ROUNDS (=2); any gaps still open at the bound are reported, never silently dropped.
 Synthesize    ModernizationPlan.md + epics/features/stories/tasks/ADRs/phases/milestones (prompt 682-702)
 ```
 
