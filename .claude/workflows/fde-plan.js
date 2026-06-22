@@ -51,22 +51,51 @@ const RESEARCH = {
   },
 };
 
+// Backlog is an explicit EPIC -> STORY -> SUBTASK hierarchy (not a flat story list). IDs make the work
+// traceable: the BA gate (2.3) checks every story's evidence points back to an analysis finding ID, and
+// /fde-implement (G1, steps 4/6/7) consumes the subtasks. IDs: epics E-001, stories S-001, subtasks T-001.
 const STORIES = {
   type: 'object',
-  required: ['stories'],
+  required: ['epics'],
   properties: {
-    stories: {
+    epics: {
       type: 'array',
       items: {
         type: 'object',
-        required: ['persona', 'want', 'soThat'],
+        required: ['id', 'title', 'stories'],
         properties: {
-          persona: { type: 'string' },
-          want: { type: 'string' },
-          soThat: { type: 'string' },
-          acceptance: { type: 'array', items: { type: 'string' } },
-          evidence: { type: 'array', items: { type: 'string' } },
-          confidence: { type: 'number' },
+          id: { type: 'string', description: 'epic id, e.g. E-001 (unique)' },
+          title: { type: 'string' },
+          capability: { type: 'string', description: 'business capability this epic delivers (from the analysis)' },
+          stories: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['id', 'persona', 'want', 'soThat'],
+              properties: {
+                id: { type: 'string', description: 'story id, e.g. S-001 (unique across all epics)' },
+                persona: { type: 'string' },
+                want: { type: 'string' },
+                soThat: { type: 'string' },
+                acceptance: { type: 'array', items: { type: 'string' } },
+                evidence: { type: 'array', items: { type: 'string' }, description: 'analysis finding IDs (F-001) and/or file:symbol this story traces to — the BA gate validates these' },
+                confidence: { type: 'number' },
+                subtasks: {
+                  type: 'array',
+                  description: 'single-engineer units of work (the breakdown /fde-implement will operationalize)',
+                  items: {
+                    type: 'object',
+                    required: ['id', 'title'],
+                    properties: {
+                      id: { type: 'string', description: 'subtask id, e.g. T-001 (unique)' },
+                      title: { type: 'string', description: 'one small unit of work for a single engineer' },
+                      acceptance: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -164,20 +193,30 @@ const research = [
 ].filter(Boolean);
 log(`Research done (web=${WEB}).`);
 
-// Ph2 STORIES — evidence-backed user stories from capabilities + discovered personas.
+// Ph2 STORIES — evidence-backed backlog as an EPIC -> STORY -> SUBTASK hierarchy (not a flat list).
 phase('Stories');
 const stories = await agent(
-  `Generate evidence-backed user stories (As a [persona] / I want / So that + acceptance + evidence + confidence)
-   for the in-scope modernization (${WORK}). Use ONLY personas and capabilities grounded in the analysis.
+  `Build the backlog for the in-scope modernization (${WORK}) as an explicit hierarchy, NOT a flat list:
+   - EPICS group by business capability (from the analysis). Give each a unique id E-001, E-002, …
+   - STORIES sit under an epic: "As a [persona] / I want / So that", with acceptance criteria, evidence, and a
+     confidence. Give each a unique id S-001, S-002, … Evidence MUST cite the analysis finding IDs (F-001 style)
+     and/or file:symbol the story traces to — the next phase (BA gate) validates this.
+   - SUBTASKS sit under a story: small single-engineer units of work, each with a unique id T-001, T-002, … and
+     acceptance. (These feed /fde-implement.)
+   Use ONLY personas and capabilities grounded in the analysis. No story without traceable evidence.
    ${groundwork}`,
   { label: 'user-stories', phase: 'Stories', schema: STORIES, model: MODEL }
 );
+// Flatten for the phases that want a story list; keep the epic id on each for traceability.
+const epics = (stories && stories.epics) || [];
+const flatStories = epics.flatMap((e) => (e.stories || []).map((s) => ({ ...s, epic: e.id })));
+log(`Backlog: ${epics.length} epic(s), ${flatStories.length} story(ies), ${flatStories.reduce((n, s) => n + ((s.subtasks || []).length), 0)} subtask(s).`);
 
 // Ph3 REVIEW — refute-mode stakeholder review.
 //   default : ONE agent reviews through ALL lenses (lean).
 //   rigorous: ONE independent critic PER lens (blind to each other) + a verdict vote.
 phase('Review');
-const planSketch = `Work: ${WORK} (mode=${mode}). Research: ${JSON.stringify(research).slice(0, 80000)}. Stories: ${JSON.stringify((stories && stories.stories) || []).slice(0, 40000)}. ${groundwork}`;
+const planSketch = `Work: ${WORK} (mode=${mode}). Research: ${JSON.stringify(research).slice(0, 80000)}. Backlog (epics->stories): ${JSON.stringify(epics).slice(0, 40000)}. ${groundwork}`;
 const reviewLenses = reviewers.length ? reviewers : [{ persona: 'Generic stakeholder', prompt: 'Review for any regression to documented behavior.' }];
 let reviews = [];
 if (RIGOROUS) {
@@ -288,13 +327,14 @@ phase('Report');
 const report = await agent(
   `FIRST use the Write tool to save your complete final plan markdown to ./fde-modernization-plan.md in the repo root, THEN return the same markdown as your text result. Write the Modernization Plan as professional Markdown for this ${WORK} (mode=${mode}). Sections:
    Executive Summary; Target Architecture; ${mode === 'upgrade' ? 'Upgrade Roadmap (ordered version steps, milestones)' : 'Migration Roadmap (strangler-fig, milestones)'}; ${mode === 'upgrade' ? 'Area/Pattern Update Map' : 'Component Map'}
-   (spec-level table); User Stories; Stakeholder Review (per persona, risks + how the spec answers them);
+   (spec-level table); Backlog (render the Epic -> Story -> Subtask hierarchy with their E/S/T ids, each story's
+   persona/want/soThat + acceptance + traced finding-IDs); Stakeholder Review (per persona, risks + how the spec answers them);
    Data Migration / Risk / Rollback / Testing / Deployment / Effort; Critic Gate result; Prototype note.
    Review tier: ${RIGOROUS ? `RIGOROUS (one critic per lens${voteNote})` : 'lean (1 agent, all lenses, one-shot critic — pass {rigorous:true} for per-lens review + gap-loop)'}.
    Separate Facts / Inferences / Recommendations; keep confidence scores. Then: Epics, Features, Tasks, ADRs,
    Migration Phases, Milestones with an implementation order and called-out blockers, dependencies, quick wins.
    spec=${JSON.stringify(spec).slice(0, 150000)}
-   stories=${JSON.stringify((stories && stories.stories) || []).slice(0, 60000)}
+   backlog(epics->stories->subtasks)=${JSON.stringify(epics).slice(0, 80000)}
    reviews=${JSON.stringify(reviews).slice(0, 80000)}
    critic=${JSON.stringify(critique || {}).slice(0, 40000)}
    prototype=${prototypeNote.slice(0, 8000)}`,
