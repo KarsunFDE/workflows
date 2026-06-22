@@ -10,6 +10,7 @@ export const meta = {
     { title: 'Review' },
     { title: 'Spec' },
     { title: 'Critic' },
+    { title: 'Cloud' },
     { title: 'Report' },
   ],
 };
@@ -167,6 +168,33 @@ const SPEC = {
     testing: { type: 'string' },
     deployment: { type: 'string' },
     effort: { type: 'string' },
+  },
+};
+
+// Cloud architecture (2.4): per-service Docker container + Amazon EKS (Kubernetes) design, from G3's inventory.
+const CLOUD_ARCH = {
+  type: 'object',
+  required: ['services', 'clusterConcerns'],
+  properties: {
+    targetPlatform: { type: 'string', description: 'Amazon EKS (Docker containers on Kubernetes)' },
+    services: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string' },
+          container: { type: 'string', description: 'Docker: base image, build approach, exposed ports, runtime/health' },
+          kubernetes: { type: 'string', description: 'K8s resources: Deployment/Service, namespace, replicas + autoscaling (HPA), ConfigMap/Secret needs' },
+          stateful: { type: 'boolean', description: 'holds state -> needs StatefulSet/PVC or an external managed store (RDS/ElastiCache)' },
+          fargateVsNodes: { type: 'string', description: 'run on EKS managed-node-group or Fargate profile, with reason' },
+          tracedTo: { type: 'array', items: { type: 'string' }, description: 'inventory entry / finding ID this maps to' },
+        },
+      },
+    },
+    clusterConcerns: { type: 'string', description: 'EKS-level: VPC CNI networking + CIDR sizing, ingress/load balancing, cluster autoscaling (Cluster Autoscaler/Karpenter), secrets (Secrets Manager/CSI), observability, multi-AZ reliability, cost' },
+    rolloutNote: { type: 'string', description: 'how containerization ties to the migration/upgrade roadmap (e.g. strangler-fig behind an ingress)' },
+    note: { type: 'string', description: 'caveats — e.g. inventory not available, services inferred' },
   },
 };
 
@@ -376,6 +404,33 @@ if (sandboxDir) {
   prototypeNote = `Prototype emitted to ${sandboxDir}:\n${proto}`;
 }
 
+// Ph5.7 CLOUD — design the modernized app's deployment as Docker containers on Amazon EKS (2.4).
+// Consumes Group 3's `## Deployment & Container Inventory` (3a.4) when present; degrades to inferring services
+// from the spec if it isn't there yet. Spec-level (no full YAML); anchored on the AWS EKS Best Practices Guide.
+phase('Cloud');
+const invMatch = groundwork.match(/##\s*Deployment\s*&\s*Container\s*Inventory[\s\S]*?(?=\n##\s|$)/i);
+const inventory = invMatch ? invMatch[0].slice(0, 30000) : '';
+const cloudArch = await agent(
+  `Design how the modernized system runs in the cloud as DOCKER CONTAINERS on AMAZON EKS (Kubernetes).
+   ${inventory
+     ? 'Use this deployment/container inventory from the analysis as the source of services:'
+     : 'No "## Deployment & Container Inventory" section was found in the analysis (Group 3 task 3a.4 may not be merged yet) — INFER the services from the spec/target architecture and set note to say so.'}
+   ${inventory ? inventory : ''}
+   For EACH service: the Docker container (base image, build, exposed ports, health/runtime), the Kubernetes
+   resources it needs (Deployment + Service, namespace, replicas + HPA autoscaling, ConfigMap/Secret), whether it
+   is stateful (-> StatefulSet/PVC or external managed store), and whether to run it on a managed node group or a
+   Fargate profile (with reason). Then clusterConcerns at the EKS level. Trace each service back to an inventory
+   entry / finding ID where possible.
+   Follow the AWS EKS Best Practices Guide: the control plane is AWS-managed across 3 AZs; size the VPC CNI CIDR
+   (>=/16 for production, pods get VPC IPs); use Cluster Autoscaler or Karpenter for node scaling; keep secrets in
+   AWS Secrets Manager via the CSI driver; design for multi-AZ; weigh cost. SPEC-LEVEL — describe resources, do
+   NOT emit full YAML (that is /fde-implement's job).
+   Target/mode: ${WORK}. Target architecture: ${JSON.stringify((spec && spec.targetArchitecture) || '').slice(0, 8000)}
+   Components/services: ${JSON.stringify((spec && spec.componentMap) || []).slice(0, 40000)}`,
+  { label: 'cloud-arch', phase: 'Cloud', schema: CLOUD_ARCH, model: MODEL }
+);
+log(`Cloud architecture: ${((cloudArch && cloudArch.services) || []).length} service(s) designed for Amazon EKS${inventory ? '' : ' (services inferred — no inventory section found)'}.`);
+
 // Ph6 REPORT — synthesize ModernizationPlan. Returned to session (report-only).
 phase('Report');
 const report = await agent(
@@ -386,6 +441,9 @@ const report = await agent(
    Data Migration / Risk / Rollback / Testing / Deployment / Effort; Critic Gate result; Prototype note.
    BA Traceability Gate: state the verdict (${baGate.verdict}); list any UNTRACED stories (id + issue) and any
    uncovered finding IDs; if the gate was skipped, say so and why (${baGate.note ? 'note: ' + baGate.note : 'n/a'}).
+   Cloud Architecture (Docker -> Amazon EKS): a table of services (container | k8s resources | stateful | node vs
+   Fargate | traced-to), then the cluster-level concerns (networking/CIDR, autoscaling, secrets, multi-AZ, cost)
+   and how rollout ties to the roadmap. Note this is spec-level; manifests are emitted by /fde-implement.
    Review tier: ${RIGOROUS ? `RIGOROUS (one critic per lens${voteNote})` : 'lean (1 agent, all lenses, one-shot critic — pass {rigorous:true} for per-lens review + gap-loop)'}.
    Separate Facts / Inferences / Recommendations; keep confidence scores. Then: Epics, Features, Tasks, ADRs,
    Migration Phases, Milestones with an implementation order and called-out blockers, dependencies, quick wins.
@@ -394,6 +452,7 @@ const report = await agent(
    reviews=${JSON.stringify(reviews).slice(0, 80000)}
    critic=${JSON.stringify(critique || {}).slice(0, 40000)}
    baGate=${JSON.stringify(baGate || {}).slice(0, 40000)}
+   cloudArch=${JSON.stringify(cloudArch || {}).slice(0, 60000)}
    prototype=${prototypeNote.slice(0, 8000)}`,
   { label: 'plan-report', phase: 'Report', model: MODEL }
 );
