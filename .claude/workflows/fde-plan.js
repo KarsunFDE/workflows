@@ -1,14 +1,16 @@
 export const meta = {
   name: 'fde-plan',
-  description: 'Plan an Angular->target (react|nextjs) migration: research equivalents, user stories, persona review (refute-mode, using the personas/*.md reviewer lenses), spec-level plan + roadmap/risk/rollback/test, critic gate. Default review is lean (1 agent, all lenses, one-shot critic); {rigorous:true} runs one critic PER lens + a verdict vote + a bounded gap-loop. Report-only unless {sandboxDir} given; never edits the app. Run after /fde-analyze. Args {target,analysisReport?,sandboxDir?,rigorous?,web?}.',
-  whenToUse: 'Run AFTER /fde-analyze, once a human has read the analysis and picked a target. Invoke as: /fde-plan with args {target:"react"|"nextjs", analysisReport?:string, sandboxDir?:string, rigorous?:boolean}. analysisReport (paste the /fde-analyze output) grounds the plan; sandboxDir enables prototype emission; rigorous trades tokens for per-lens adversarial review + gap-loop.',
+  description: 'Plan a modernization toward ANY target the analysis recommends, in one of two modes: mode:"migrate" (cross-stack swap, e.g. Angular->React/Next) or mode:"upgrade" (in-place version bump of the same stack, e.g. Angular 14->19, Spring Boot 2->3). Research equivalents/breaking-changes, user stories, persona review (refute-mode, using personas/*.md lenses), spec-level plan + roadmap/risk/rollback/test, critic gate. Default review is lean (1 agent, all lenses, one-shot critic); {rigorous:true} runs one critic PER lens + a verdict vote + a bounded gap-loop. Report-only unless {sandboxDir} given; never edits the app. Run after /fde-analyze. Args {target,mode?,source?,analysisReport?,sandboxDir?,rigorous?,web?}.',
+  whenToUse: 'Run AFTER /fde-analyze, once a human has read the analysis and picked WHAT to modernize. Invoke as: /fde-plan with args {target:string, mode:"migrate"|"upgrade", analysisReport?:string, sandboxDir?:string, rigorous?:boolean}. target accepts any value the assessment names (react, nextjs, "spring-boot-3", …); mode defaults to migrate, source defaults to Angular. analysisReport (paste the /fde-analyze output) grounds the plan; sandboxDir enables prototype emission; rigorous trades tokens for per-lens adversarial review + gap-loop.',
   phases: [
     { title: 'Load' },
     { title: 'Research' },
     { title: 'Stories' },
+    { title: 'BA Gate' },
     { title: 'Review' },
     { title: 'Spec' },
     { title: 'Critic' },
+    { title: 'Cloud' },
     { title: 'Report' },
   ],
 };
@@ -17,11 +19,21 @@ export const meta = {
 // ("/fde-plan with target nextjs, sandboxDir ../proto"). Handle both.
 const _a = args || {};
 const _rawTarget = (typeof _a === 'string' ? _a : _a.target) || 'react';
-let target = String(_rawTarget).toLowerCase().trim();
-if (target !== 'react' && target !== 'nextjs') {
-  log(`Unrecognized target "${target}" — defaulting to react. Pass react or nextjs.`);
-  target = 'react';
+// Accept ANY target the /fde-analyze assessment recommends — not just react|nextjs. The guard used to hard-reject
+// anything else, which baked in the frontend-migration assumption. We now keep whatever target is passed.
+const target = String(_rawTarget).toLowerCase().trim() || 'react';
+const KNOWN_FE = ['react', 'nextjs'];
+// mode: how to modernize. 'migrate' = cross-stack swap (e.g. Angular -> React). 'upgrade' = in-place version bump
+// of the SAME stack (e.g. Angular 14 -> 19, Spring Boot 2 -> 3). Default migrate = the original behavior.
+let mode = String((typeof _a === 'object' && _a.mode) || 'migrate').toLowerCase().trim();
+if (mode !== 'migrate' && mode !== 'upgrade') { log(`Unrecognized mode "${mode}" — defaulting to migrate.`); mode = 'migrate'; }
+// source = the stack being modernized (only meaningful for a migration). Default 'Angular' = this repo's frontend.
+const source = String((typeof _a === 'object' && _a.source) || 'Angular').trim() || 'Angular';
+if (mode === 'migrate' && !KNOWN_FE.includes(target)) {
+  log(`Target "${target}" is outside the tested set (${KNOWN_FE.join(', ')}) — proceeding; research/spec rely on model knowledge for it.`);
 }
+// Human-readable label for prompts. migrate => "<source> -> <target> migration"; upgrade => "<target> upgrade".
+const WORK = mode === 'upgrade' ? `${target} in-place upgrade` : `${source} -> ${target} migration`;
 const analysisReport = (typeof _a === 'object' && _a.analysisReport) || '';
 const sandboxDir = (typeof _a === 'object' && _a.sandboxDir) || '';
 // RIGOROUS tier (token-for-rigor trade): one critic PER stakeholder lens + a verdict vote, and a bounded
@@ -36,30 +48,83 @@ const RESEARCH = {
   required: ['angle', 'findings'],
   properties: {
     angle: { type: 'string' },
-    findings: { type: 'array', items: { type: 'object' }, description: 'Angular construct -> target equivalent, breaking changes, recommended lib, citation/source' },
+    findings: { type: 'array', items: { type: 'object' }, description: 'migrate: source construct -> target equivalent; upgrade: old-version API/pattern -> new-version replacement. Include breaking changes, recommended lib/codemod, citation/source' },
     risks: { type: 'array', items: { type: 'string' } },
   },
 };
 
+// Backlog is an explicit EPIC -> STORY -> SUBTASK hierarchy (not a flat story list). IDs make the work
+// traceable: the BA gate (2.3) checks every story's evidence points back to an analysis finding ID, and
+// /fde-implement (G1, steps 4/6/7) consumes the subtasks. IDs: epics E-001, stories S-001, subtasks T-001.
 const STORIES = {
   type: 'object',
-  required: ['stories'],
+  required: ['epics'],
+  properties: {
+    epics: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'title', 'stories'],
+        properties: {
+          id: { type: 'string', description: 'epic id, e.g. E-001 (unique)' },
+          title: { type: 'string' },
+          capability: { type: 'string', description: 'business capability this epic delivers (from the analysis)' },
+          stories: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['id', 'persona', 'want', 'soThat'],
+              properties: {
+                id: { type: 'string', description: 'story id, e.g. S-001 (unique across all epics)' },
+                persona: { type: 'string' },
+                want: { type: 'string' },
+                soThat: { type: 'string' },
+                acceptance: { type: 'array', items: { type: 'string' } },
+                evidence: { type: 'array', items: { type: 'string' }, description: 'analysis finding IDs (F-001) and/or file:symbol this story traces to — the BA gate validates these' },
+                confidence: { type: 'number' },
+                subtasks: {
+                  type: 'array',
+                  description: 'single-engineer units of work (the breakdown /fde-implement will operationalize)',
+                  items: {
+                    type: 'object',
+                    required: ['id', 'title'],
+                    properties: {
+                      id: { type: 'string', description: 'subtask id, e.g. T-001 (unique)' },
+                      title: { type: 'string', description: 'one small unit of work for a single engineer' },
+                      acceptance: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+// BA traceability gate (2.3): forward (story -> finding ID) + backward (finding -> story).
+const BA_GATE = {
+  type: 'object',
+  required: ['stories', 'verdict'],
   properties: {
     stories: {
       type: 'array',
       items: {
         type: 'object',
-        required: ['persona', 'want', 'soThat'],
+        required: ['id', 'traced'],
         properties: {
-          persona: { type: 'string' },
-          want: { type: 'string' },
-          soThat: { type: 'string' },
-          acceptance: { type: 'array', items: { type: 'string' } },
-          evidence: { type: 'array', items: { type: 'string' } },
-          confidence: { type: 'number' },
+          id: { type: 'string', description: 'story id (S-001)' },
+          traced: { type: 'boolean', description: 'true if it maps to >=1 analysis finding ID' },
+          tracedTo: { type: 'array', items: { type: 'string' }, description: 'finding IDs / evidence it maps to' },
+          issue: { type: 'string', description: 'why untraced, when traced=false' },
         },
       },
     },
+    uncoveredFindings: { type: 'array', items: { type: 'string' }, description: 'analysis finding IDs NO story covers (backward-traceability gaps)' },
+    verdict: { type: 'string', enum: ['all-traced', 'gaps'] },
+    note: { type: 'string' },
   },
 };
 
@@ -96,13 +161,40 @@ const SPEC = {
   properties: {
     targetArchitecture: { type: 'string' },
     roadmap: { type: 'array', items: { type: 'object' }, description: 'strangler-fig ordered phases/milestones' },
-    componentMap: { type: 'array', items: { type: 'object' }, description: 'Angular file -> target file, prop/state contract (spec-level, NO full code)' },
+    componentMap: { type: 'array', items: { type: 'object' }, description: 'migrate: source file -> target file + prop/state contract; upgrade: module/area -> updated API/pattern. Spec-level, NO full code' },
     dataMigration: { type: 'string' },
     riskAssessment: { type: 'string' },
     rollback: { type: 'string' },
     testing: { type: 'string' },
     deployment: { type: 'string' },
     effort: { type: 'string' },
+  },
+};
+
+// Cloud architecture (2.4): per-service Docker container + Amazon EKS (Kubernetes) design, from G3's inventory.
+const CLOUD_ARCH = {
+  type: 'object',
+  required: ['services', 'clusterConcerns'],
+  properties: {
+    targetPlatform: { type: 'string', description: 'Amazon EKS (Docker containers on Kubernetes)' },
+    services: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string' },
+          container: { type: 'string', description: 'Docker: base image, build approach, exposed ports, runtime/health' },
+          kubernetes: { type: 'string', description: 'K8s resources: Deployment/Service, namespace, replicas + autoscaling (HPA), ConfigMap/Secret needs' },
+          stateful: { type: 'boolean', description: 'holds state -> needs StatefulSet/PVC or an external managed store (RDS/ElastiCache)' },
+          fargateVsNodes: { type: 'string', description: 'run on EKS managed-node-group or Fargate profile, with reason' },
+          tracedTo: { type: 'array', items: { type: 'string' }, description: 'inventory entry / finding ID this maps to' },
+        },
+      },
+    },
+    clusterConcerns: { type: 'string', description: 'EKS-level: VPC CNI networking + CIDR sizing, ingress/load balancing, cluster autoscaling (Cluster Autoscaler/Karpenter), secrets (Secrets Manager/CSI), observability, multi-AZ reliability, cost' },
+    rolloutNote: { type: 'string', description: 'how containerization ties to the migration/upgrade roadmap (e.g. strangler-fig behind an ingress)' },
+    note: { type: 'string', description: 'caveats — e.g. inventory not available, services inferred' },
   },
 };
 
@@ -115,7 +207,7 @@ const ctx = await agent(
    present; if a card has no Reviewer lens, DERIVE one from its "What they cannot do" / "Constraints / authority
    limits" / "Impact on the system" sections (refute-mode: what the migration must not regress).
    ${analysisReport ? 'An analysis report is provided separately; do not re-scan.' :
-   'No analysis report was passed — do a FOCUSED read of the in-scope Angular frontend (components, routes, ' +
+   'No analysis report was passed — do a FOCUSED read of the in-scope code being modernized (components, routes, ' +
    'forms, services it calls) to recover the capabilities and boundary contracts the plan must preserve. ' +
    'Cite file:line.'} Return the reviewer prompts and a concise capability/boundary summary.`,
   { label: 'load-context', phase: 'Load', agentType: 'Explore', model: MODEL,
@@ -130,17 +222,23 @@ const reviewers = (ctx && ctx.reviewerPrompts) || [];
 const groundwork = analysisReport
   ? `ANALYSIS REPORT:\n${analysisReport.slice(0, 200000)}`
   : `CAPABILITIES (recovered): ${JSON.stringify((ctx && ctx.capabilities) || []).slice(0, 100000)}\nBOUNDARIES: ${JSON.stringify((ctx && ctx.boundaries) || [])}`;
-log(`Planning Angular -> ${target}. Loaded ${reviewers.length} reviewer persona(s).`);
+log(`Planning ${WORK} (mode=${mode}). Loaded ${reviewers.length} reviewer persona(s).`);
 
 // Ph1 RESEARCH — ONE agent covers all angles from model knowledge. Web OFF by default (token-frugal);
 // pass args.web:true to allow a couple of targeted searches for version-specific details.
 phase('Research');
 const WEB = (typeof _a === 'object' && _a.web) === true;
+const researchPrompt = mode === 'upgrade'
+  ? `Summarize how to perform an in-place upgrade of ${target} (a same-stack version bump, NOT a rewrite).
+     Cover: the inter-version breaking changes, the official upgrade/migration tooling and codemods (e.g.
+     \`ng update\`, framework migration guides), deprecated/removed APIs and their replacements, and the
+     config/build/pattern updates each version requires. For each, give the old API/pattern -> new replacement.`
+  : `Summarize how to migrate a ${source} app to ${target}, covering: components/templates, routing,
+     state management & services, reactive forms & validation, build/tooling & SSR, and the main
+     breaking-change gotchas. For each, give the ${target} equivalent + recommended library.`;
 const research = [
   await agent(
-    `Summarize how to migrate an Angular app to ${target}, covering: components/templates, routing,
-     state management & services, reactive forms & validation, build/tooling & SSR, and the main
-     breaking-change gotchas. For each, give the ${target} equivalent + recommended library.
+    `${researchPrompt}
      ${WEB ? 'You MAY run up to 2 web searches ONLY for version-specific details you are unsure of.'
            : 'Do NOT use web search — rely on your own knowledge to conserve tokens.'}`,
     { label: 'research', phase: 'Research', schema: RESEARCH, model: MODEL }
@@ -148,20 +246,60 @@ const research = [
 ].filter(Boolean);
 log(`Research done (web=${WEB}).`);
 
-// Ph2 STORIES — evidence-backed user stories from capabilities + discovered personas.
+// Ph2 STORIES — evidence-backed backlog as an EPIC -> STORY -> SUBTASK hierarchy (not a flat list).
 phase('Stories');
 const stories = await agent(
-  `Generate evidence-backed user stories (As a [persona] / I want / So that + acceptance + evidence + confidence)
-   for the in-scope frontend modernization. Use ONLY personas and capabilities grounded in the analysis.
+  `Build the backlog for the in-scope modernization (${WORK}) as an explicit hierarchy, NOT a flat list:
+   - EPICS group by business capability (from the analysis). Give each a unique id E-001, E-002, …
+   - STORIES sit under an epic: "As a [persona] / I want / So that", with acceptance criteria, evidence, and a
+     confidence. Give each a unique id S-001, S-002, … Evidence MUST cite the analysis finding IDs (F-001 style)
+     and/or file:symbol the story traces to — the next phase (BA gate) validates this.
+   - SUBTASKS sit under a story: small single-engineer units of work, each with a unique id T-001, T-002, … and
+     acceptance. (These feed /fde-implement.)
+   Use ONLY personas and capabilities grounded in the analysis. No story without traceable evidence.
    ${groundwork}`,
   { label: 'user-stories', phase: 'Stories', schema: STORIES, model: MODEL }
 );
+// Flatten for the phases that want a story list; keep the epic id on each for traceability.
+const epics = (stories && stories.epics) || [];
+const flatStories = epics.flatMap((e) => (e.stories || []).map((s) => ({ ...s, epic: e.id })));
+log(`Backlog: ${epics.length} epic(s), ${flatStories.length} story(ies), ${flatStories.reduce((n, s) => n + ((s.subtasks || []).length), 0)} subtask(s).`);
+
+// Ph2.5 BA GATE — requirements-traceability gate. Bidirectional: forward (every story must trace to an analysis
+// finding ID, F-001 style) + backward (which findings no story covers). With no mid-run input, the gate FLAGS +
+// records (surfaced in the report) rather than hard-stopping. Degrades gracefully if the analysis carries no IDs
+// yet (3a.3 not merged into the report being planned against).
+phase('BA Gate');
+// Match F-1, F-001, F-1234 alike (\d+, not \d{2,}) — defensive against G3 not zero-padding the IDs.
+const findingIds = Array.from(new Set(groundwork.match(/\bF-\d+\b/g) || []));
+let baGate = { stories: [], uncoveredFindings: [], verdict: 'all-traced', note: '' };
+if (!findingIds.length) {
+  baGate.note = 'Analysis report exposes no F-### finding IDs (3a.3 not in this report) — traceability not enforced this run; stories pass unvalidated. Re-run /fde-analyze once it stamps finding IDs.';
+  log('BA gate: no finding IDs in the analysis — traceability skipped (note recorded in the report).');
+} else {
+  baGate = await agent(
+    `You are the Business Analyst traceability gate. Validate the backlog against the analysis findings, BOTH ways:
+     - FORWARD: every story MUST trace to >=1 analysis finding ID. A story whose evidence cites a known finding ID
+       (or a file:symbol that clearly maps to one) is traced=true; otherwise traced=false WITH an issue describing
+       what is unsupported. Do NOT invent a trace — if there is no real evidence link, mark it untraced.
+     - BACKWARD: list the analysis finding IDs that NO story covers (uncoveredFindings).
+     verdict='all-traced' ONLY if every story is traced; else 'gaps'.
+     Known analysis finding IDs: ${JSON.stringify(findingIds)}
+     Backlog (epics->stories with evidence): ${JSON.stringify(epics).slice(0, 90000)}`,
+    { label: 'ba-gate', phase: 'BA Gate', schema: BA_GATE, model: MODEL }
+  );
+}
+const untracedStories = (baGate.stories || []).filter((s) => !s.traced);
+const baNote = findingIds.length
+  ? `BA gate: ${(baGate.stories || []).length} story(ies) checked, ${untracedStories.length} UNTRACED, ${(baGate.uncoveredFindings || []).length} uncovered finding(s). Verdict: ${baGate.verdict}.`
+  : 'BA gate: skipped (analysis has no finding IDs yet).';
+log(baNote);
 
 // Ph3 REVIEW — refute-mode stakeholder review.
 //   default : ONE agent reviews through ALL lenses (lean).
 //   rigorous: ONE independent critic PER lens (blind to each other) + a verdict vote.
 phase('Review');
-const planSketch = `Target: Angular -> ${target}. Research: ${JSON.stringify(research).slice(0, 80000)}. Stories: ${JSON.stringify((stories && stories.stories) || []).slice(0, 40000)}. ${groundwork}`;
+const planSketch = `Work: ${WORK} (mode=${mode}). Research: ${JSON.stringify(research).slice(0, 80000)}. Backlog (epics->stories): ${JSON.stringify(epics).slice(0, 40000)}. ${groundwork}`;
 const reviewLenses = reviewers.length ? reviewers : [{ persona: 'Generic stakeholder', prompt: 'Review for any regression to documented behavior.' }];
 let reviews = [];
 if (RIGOROUS) {
@@ -169,7 +307,7 @@ if (RIGOROUS) {
     await parallel(
       reviewLenses.map((r) => () =>
         agent(
-          `Review this Angular -> ${target} migration ONLY through the ${r.persona} lens, refute-mode. You have NOT
+          `Review this ${WORK} ONLY through the ${r.persona} lens, refute-mode. You have NOT
            seen any other reviewer's verdict — judge independently. Return ONE review entry: a verdict
            (no-regression | regression-risk) and the regression risks (risk, severity, capability, mitigation).
            Default to REFUTE: if the plan does not prove this lens's constraints survive, record a regression-risk.
@@ -183,7 +321,7 @@ ${planSketch}`,
   ).filter(Boolean);
 } else {
   const reviewOut = await agent(
-    `Review this Angular -> ${target} migration through EACH stakeholder lens below, refute-mode.
+    `Review this ${WORK} through EACH stakeholder lens below, refute-mode.
      For every lens, return one review entry with regression risks (risk, severity, capability, mitigation).
      Default to REFUTE: if the plan does not prove a lens's constraints survive, record a regression-risk.
      LENSES:
@@ -202,10 +340,15 @@ log(`Persona review complete (${reviewLenses.length} lenses, ${RIGOROUS ? `${rev
 
 // Ph4 SPEC — spec-level migration plan that must answer every Critical/High risk.
 phase('Spec');
+const specShape = mode === 'upgrade'
+  ? `area-by-area update mapping in componentMap (module/area -> updated API/pattern per breaking change; this is
+     an in-place version bump, NOT a file-to-file rewrite), an ORDERED upgrade sequence (apply codemods / \`ng
+     update\` / official migration steps version-by-version), target architecture (the upgraded stack)`
+  : `component-by-component mapping in componentMap (source file -> target file, prop/state contract), target
+     architecture, strangler-fig roadmap (migrate incrementally behind a boundary)`;
 let spec = await agent(
-  `Produce the spec-level migration plan for Angular -> ${target}. SPEC-LEVEL ONLY: component-by-component
-   mapping (Angular file -> target file, prop/state contract), target architecture, strangler-fig roadmap/
-   milestones, data-migration, risk, rollback, testing, deployment, effort. NO full source in the spec.
+  `Produce the spec-level plan for this ${WORK}. SPEC-LEVEL ONLY: ${specShape},
+   plus milestones, data-migration, risk, rollback, testing, deployment, effort. NO full source in the spec.
    Every Critical/High regression risk below MUST be explicitly addressed by a roadmap step or mitigation.
    Regression risks: ${JSON.stringify(mustFix).slice(0, 80000)}
    Research: ${JSON.stringify(research).slice(0, 120000)}
@@ -252,31 +395,78 @@ if (RIGOROUS) {
 let prototypeNote = 'Prototype skipped (no sandboxDir passed; report stays spec-level).';
 if (sandboxDir) {
   const proto = await agent(
-    `Emit a small React/Next prototype for the 1-2 highest-value in-scope components from the spec.
+    `Emit a small proof-of-concept for the 1-2 highest-value in-scope items from the spec${mode === 'upgrade'
+      ? ` — show the upgraded ${target} patterns (the post-upgrade form of those items)`
+      : ` — a small ${target} prototype of those components`}.
      Write files ONLY under "${sandboxDir}". Do NOT read or modify any file outside that directory, and never
-     touch the Angular app. Return the list of files written. Spec: ${JSON.stringify(spec).slice(0, 80000)}`,
+     touch the existing app. Return the list of files written. Spec: ${JSON.stringify(spec).slice(0, 80000)}`,
     { label: 'prototype', phase: 'Spec', model: MODEL }
   );
   prototypeNote = `Prototype emitted to ${sandboxDir}:\n${proto}`;
 }
 
+// Ph5.7 CLOUD — design the modernized app's deployment as Docker containers on Amazon EKS (2.4).
+// Consumes Group 3's `## Deployment & Container Inventory` (3a.4) when present; degrades to inferring services
+// from the spec if it isn't there yet. Spec-level (no full YAML); anchored on the AWS EKS Best Practices Guide.
+phase('Cloud');
+// Strict heading is the agreed G3 contract ("## Deployment & Container Inventory"). Fall back to a looser probe
+// (any heading mentioning both "Container" and "Inventory" — tolerates drift like "...and Container Inventory")
+// and WARN, so a present-but-renamed inventory isn't silently missed and dropped to "infer services".
+let invMatch = groundwork.match(/##\s*Deployment\s*&\s*Container\s*Inventory[\s\S]*?(?=\n##\s|$)/i);
+if (!invMatch) {
+  const loose = groundwork.match(/##[^\n]*Container[^\n]*Inventory[\s\S]*?(?=\n##\s|$)/i);
+  if (loose) {
+    invMatch = loose;
+    log('Cloud: inventory heading did not match the exact "## Deployment & Container Inventory" contract — used a looser Container/Inventory heading. Confirm the exact heading with Group 3.');
+  }
+}
+const inventory = invMatch ? invMatch[0].slice(0, 30000) : '';
+const cloudArch = await agent(
+  `Design how the modernized system runs in the cloud as DOCKER CONTAINERS on AMAZON EKS (Kubernetes).
+   ${inventory
+     ? 'Use this deployment/container inventory from the analysis as the source of services:'
+     : 'No "## Deployment & Container Inventory" section was found in the analysis (Group 3 task 3a.4 may not be merged yet) — INFER the services from the spec/target architecture and set note to say so.'}
+   ${inventory ? inventory : ''}
+   For EACH service: the Docker container (base image, build, exposed ports, health/runtime), the Kubernetes
+   resources it needs (Deployment + Service, namespace, replicas + HPA autoscaling, ConfigMap/Secret), whether it
+   is stateful (-> StatefulSet/PVC or external managed store), and whether to run it on a managed node group or a
+   Fargate profile (with reason). Then clusterConcerns at the EKS level. Trace each service back to an inventory
+   entry / finding ID where possible.
+   Follow the AWS EKS Best Practices Guide: the control plane is AWS-managed across 3 AZs; size the VPC CNI CIDR
+   (>=/16 for production, pods get VPC IPs); use Cluster Autoscaler or Karpenter for node scaling; keep secrets in
+   AWS Secrets Manager via the CSI driver; design for multi-AZ; weigh cost. SPEC-LEVEL — describe resources, do
+   NOT emit full YAML (that is /fde-implement's job).
+   Target/mode: ${WORK}. Target architecture: ${JSON.stringify((spec && spec.targetArchitecture) || '').slice(0, 8000)}
+   Components/services: ${JSON.stringify((spec && spec.componentMap) || []).slice(0, 40000)}`,
+  { label: 'cloud-arch', phase: 'Cloud', schema: CLOUD_ARCH, model: MODEL }
+);
+log(`Cloud architecture: ${((cloudArch && cloudArch.services) || []).length} service(s) designed for Amazon EKS${inventory ? '' : ' (services inferred — no inventory section found)'}.`);
+
 // Ph6 REPORT — synthesize ModernizationPlan. Returned to session (report-only).
 phase('Report');
 const report = await agent(
-  `FIRST use the Write tool to save your complete final plan markdown to ./fde-modernization-plan.md in the repo root, THEN return the same markdown as your text result. Write the Modernization Plan as professional Markdown (Angular -> ${target}). Sections:
-   Executive Summary; Target Architecture; Migration Roadmap (strangler-fig, milestones); Component Map
-   (spec-level table); User Stories; Stakeholder Review (per persona, risks + how the spec answers them);
+  `FIRST use the Write tool to save your complete final plan markdown to ./fde-modernization-plan.md in the repo root, THEN return the same markdown as your text result. Write the Modernization Plan as professional Markdown for this ${WORK} (mode=${mode}). Sections:
+   Executive Summary; Target Architecture; ${mode === 'upgrade' ? 'Upgrade Roadmap (ordered version steps, milestones)' : 'Migration Roadmap (strangler-fig, milestones)'}; ${mode === 'upgrade' ? 'Area/Pattern Update Map' : 'Component Map'}
+   (spec-level table); Backlog (render the Epic -> Story -> Subtask hierarchy with their E/S/T ids, each story's
+   persona/want/soThat + acceptance + traced finding-IDs); Stakeholder Review (per persona, risks + how the spec answers them);
    Data Migration / Risk / Rollback / Testing / Deployment / Effort; Critic Gate result; Prototype note.
+   BA Traceability Gate: state the verdict (${baGate.verdict}); list any UNTRACED stories (id + issue) and any
+   uncovered finding IDs; if the gate was skipped, say so and why (${baGate.note ? 'note: ' + baGate.note : 'n/a'}).
+   Cloud Architecture (Docker -> Amazon EKS): a table of services (container | k8s resources | stateful | node vs
+   Fargate | traced-to), then the cluster-level concerns (networking/CIDR, autoscaling, secrets, multi-AZ, cost)
+   and how rollout ties to the roadmap. Note this is spec-level; manifests are emitted by /fde-implement.
    Review tier: ${RIGOROUS ? `RIGOROUS (one critic per lens${voteNote})` : 'lean (1 agent, all lenses, one-shot critic — pass {rigorous:true} for per-lens review + gap-loop)'}.
    Separate Facts / Inferences / Recommendations; keep confidence scores. Then: Epics, Features, Tasks, ADRs,
    Migration Phases, Milestones with an implementation order and called-out blockers, dependencies, quick wins.
    spec=${JSON.stringify(spec).slice(0, 150000)}
-   stories=${JSON.stringify((stories && stories.stories) || []).slice(0, 60000)}
+   backlog(epics->stories->subtasks)=${JSON.stringify(epics).slice(0, 80000)}
    reviews=${JSON.stringify(reviews).slice(0, 80000)}
    critic=${JSON.stringify(critique || {}).slice(0, 40000)}
+   baGate=${JSON.stringify(baGate || {}).slice(0, 40000)}
+   cloudArch=${JSON.stringify(cloudArch || {}).slice(0, 60000)}
    prototype=${prototypeNote.slice(0, 8000)}`,
   { label: 'plan-report', phase: 'Report', model: MODEL }
 );
 
-log(`Modernization plan complete (Angular -> ${target}, ${RIGOROUS ? 'rigorous' : 'lean'} review). Report returned to the session.`);
+log(`Modernization plan complete (${WORK}, ${RIGOROUS ? 'rigorous' : 'lean'} review). Report returned to the session.`);
 return report;
